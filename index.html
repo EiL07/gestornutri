@@ -63,16 +63,13 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* ESTILOS GRÁFICAS Y NUEVA SELECCIÓN DE DIETAS */
+        /* ESTILOS GRÁFICAS Y NUEVA SELECCIÓN DE DIETAS SIN TICKS */
         .checklist-dietas { max-height: 400px; overflow-y: auto; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; gap: 10px; }
         
-        .diet-bar { display: block; text-align: center; padding: 16px; background: white; border: 2px solid #eee; border-radius: 8px; cursor: pointer; font-size: 15px; transition: 0.2s; font-weight: 500; color: #555; }
-        .diet-bar:hover { border-color: var(--primary); background: #fdfefe; color: var(--primary); }
+        .diet-bar { display: block; text-align: center; padding: 16px; background: white; border: 2px solid #eee; border-radius: 8px; cursor: pointer; font-size: 16px; transition: 0.2s; font-weight: bold; color: #555; }
+        .diet-bar:hover { border-color: var(--primary); background: #e8f8f5; color: var(--primary); }
         
         .diet-bar-selected { display: flex; align-items: center; background: #e8f8f5; border: 2px solid #2ECC71; border-radius: 8px; transition: 0.2s; }
-        .diet-bar-selected label { display: flex; align-items: center; flex: 1; cursor: pointer; margin: 0; padding: 12px 15px; }
-        
-        .diet-checkbox { display: none; } /* Oculta el tickbox nativo */
         .order-badge { background: #2ECC71; color: white; border-radius: 50%; min-width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; }
         
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 25px; margin-top: 20px; }
@@ -229,7 +226,6 @@
                 <button class="btn-toggle" onclick="generateCharts()" style="margin-top: 15px; margin-bottom: 0;">📊 Generar Gráficas de Evolución</button>
             </div>
 
-            <!-- Aquí están las 8 gráficas preparadas -->
             <div class="charts-grid" id="charts-wrapper" style="display: none;">
                 <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-energia"></canvas></div>
                 
@@ -250,7 +246,6 @@
     </div>
 
     <script>
-        // Registrar el plugin de etiquetas numéricas en Chart.js
         Chart.register(ChartDataLabels);
 
         // ==========================================
@@ -297,17 +292,12 @@
 
         async function logout() { await db.auth.signOut(); }
 
-        // VARIABLES GLOBALES
         const mealOrder = ['Desayuno', 'Media mañana', 'Comida', 'Media tarde', 'Cena', 'Recena'];
         let foodDatabase = [], nutrientColumns = [], savedDiets = [], currentTemplate = [], showAllMicros = false;
         let editingFoodId = null; 
-        
         let chartInstances = {};
-        
-        // ARRAY PARA GUARDAR EL ORDEN EXACTO DE LOS CLICS EN LAS DIETAS
         let selectedDietIds = [];
 
-        // CONTROL DE PESTAÑAS
         function switchTab(tab) {
             document.getElementById('tab-main').classList.remove('active');
             document.getElementById('tab-progress').classList.remove('active');
@@ -320,17 +310,13 @@
             } else {
                 document.getElementById('tab-progress').classList.add('active');
                 document.getElementById('btn-tab-progress').classList.add('active');
-                // Al entrar a gráficas, forzamos render de la lista
                 renderDietChecklist(); 
             }
         }
 
         async function initApp() { 
             try {
-                let { data: foodData, error: foodErr } = await db.from('alimentos')
-                    .select('*')
-                    .or(`user_id.is.null,user_id.eq.${currentUser.id}`);
-                
+                let { data: foodData, error: foodErr } = await db.from('alimentos').select('*').or(`user_id.is.null,user_id.eq.${currentUser.id}`);
                 if (foodErr) {
                     const res = await db.from('alimentos').select('*');
                     foodData = res.data;
@@ -341,10 +327,7 @@
                     let exactOrder = ['Energía', 'Proteína total', 'Proteínas', 'Lípidos totales', 'Lípidos', 'Hidratos de Carbono', 'Hidratos', 'Fibra'];
                     let rawCols = Object.keys(foodData[0].nutrientes);
                     nutrientColumns = exactOrder.filter(c => rawCols.includes(c)).concat(rawCols.filter(c => !exactOrder.includes(c)));
-                    
-                    if(document.getElementById('manual-inputs').innerHTML.trim() === '') {
-                        buildManualForm();
-                    }
+                    if(document.getElementById('manual-inputs').innerHTML.trim() === '') buildManualForm();
                 }
 
                 const { data: dietData } = await db.from('dietas').select('*').eq('user_id', currentUser.id);
@@ -361,16 +344,9 @@
             } catch (err) { console.error(err); alert("Error cargando los datos."); }
         }
 
-        // --- NUEVO SISTEMA VISUAL DE SELECCIÓN DE DIETAS ---
-        function renderDietChecklist(preserveChecked = false) {
+        // --- SISTEMA VISUAL DE SELECCIÓN DE DIETAS SIN CHECKBOX ---
+        function renderDietChecklist() {
             const container = document.getElementById('diet-checklist-container');
-            
-            // Guardamos los que estaban marcados si nos lo piden (no suele hacer falta con el array global, pero por seguridad)
-            let checkedIds = [];
-            if (preserveChecked) {
-                checkedIds = Array.from(document.querySelectorAll('.diet-checkbox:checked')).map(cb => cb.value);
-            }
-
             container.innerHTML = '';
             
             if(savedDiets.length === 0) {
@@ -378,19 +354,15 @@
                 return;
             }
 
-            // 1. Mostrar primero las dietas NO SELECCIONADAS (Bloques grandes centrados)
             let unselectedDiets = savedDiets.filter(d => !selectedDietIds.includes(String(d.id)));
             unselectedDiets.forEach(diet => {
-                let isChecked = preserveChecked && checkedIds.includes(String(diet.id)) ? 'checked' : '';
                 container.innerHTML += `
-                    <label class="diet-bar">
-                        <input type="checkbox" class="diet-checkbox" value="${diet.id}" onchange="handleDietCheck(this)" ${isChecked}>
+                    <div class="diet-bar" onclick="handleDietClick('${diet.id}')">
                         ${diet.name}
-                    </label>
+                    </div>
                 `;
             });
 
-            // 2. Mostrar al final las dietas SELECCIONADAS (en el orden exacto de clics)
             let selectedDiets = [];
             selectedDietIds.forEach(id => {
                 let found = savedDiets.find(d => String(d.id) === String(id));
@@ -400,12 +372,11 @@
             selectedDiets.forEach((diet, index) => {
                 container.innerHTML += `
                     <div class="diet-bar-selected">
-                        <label>
-                            <input type="checkbox" class="diet-checkbox" value="${diet.id}" checked onchange="handleDietCheck(this)">
+                        <div onclick="handleDietClick('${diet.id}')" style="display: flex; align-items: center; flex: 1; padding: 12px 15px; cursor: pointer;">
                             <span class="order-badge">${index + 1}</span>
-                            <span style="flex: 1; text-align: center; font-weight: bold; color: #27AE60; font-size: 15px;">${diet.name}</span>
-                            <span style="width: 34px;"></span> <!-- Elemento invisible para equilibrar el centrado -->
-                        </label>
+                            <span style="flex: 1; text-align: center; font-weight: bold; color: #27AE60; font-size: 16px;">${diet.name}</span>
+                            <span style="width: 34px;"></span> 
+                        </div>
                         <div style="padding-right: 15px; display: flex; gap: 5px;">
                             <button onclick="moveDiet(${index}, -1)" style="padding: 6px 12px; font-size: 14px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;" title="Subir">↑</button>
                             <button onclick="moveDiet(${index}, 1)" style="padding: 6px 12px; font-size: 14px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;" title="Bajar">↓</button>
@@ -415,41 +386,28 @@
             });
         }
 
-        function handleDietCheck(checkbox) {
-            const id = checkbox.value;
-            if(checkbox.checked) {
-                // Si la marca, la metemos a la lista (al final)
-                if(!selectedDietIds.includes(id)) {
-                    selectedDietIds.push(id);
-                }
-            } else {
-                // Si la desmarca, la sacamos de la lista
+        // Nueva función manejada puramente por JavaScript y clics en el DIV
+        function handleDietClick(id) {
+            id = String(id);
+            if(selectedDietIds.includes(id)) {
                 selectedDietIds = selectedDietIds.filter(item => item !== id);
+            } else {
+                selectedDietIds.push(id);
             }
-            
-            // Volvemos a dibujar la lista para que se mueva arriba/abajo y se cambie el estilo visual
             renderDietChecklist();
             
-            // Si las gráficas están visibles, las actualizamos en tiempo real
             if (document.getElementById('charts-wrapper').style.display !== 'none') {
                 generateCharts();
             }
         }
 
         function moveDiet(index, direction) {
-            // Previene que se salga de los límites
             if (index + direction < 0 || index + direction >= selectedDietIds.length) return;
-            
-            // Intercambiar posiciones en el array de seleccionadas
             let temp = selectedDietIds[index];
             selectedDietIds[index] = selectedDietIds[index + direction];
             selectedDietIds[index + direction] = temp;
-            
             renderDietChecklist();
-            
-            if (document.getElementById('charts-wrapper').style.display !== 'none') {
-                generateCharts();
-            }
+            if (document.getElementById('charts-wrapper').style.display !== 'none') generateCharts();
         }
 
         function generateCharts() {
@@ -459,7 +417,6 @@
                 return;
             }
 
-            // Usamos directamente el array selectedDietIds para asegurar el orden exacto
             let dietsToPlot = [];
             selectedDietIds.forEach(id => {
                 const diet = savedDiets.find(d => String(d.id) === String(id));
@@ -481,7 +438,6 @@
 
             dietsToPlot.forEach(diet => {
                 labels.push(diet.name);
-                
                 let totEng = 0, totProt = 0, totLip = 0, totCarb = 0, totFibr = 0;
                 
                 diet.template.forEach(item => {
@@ -502,7 +458,6 @@
                 dataLipidos.push(totLip.toFixed(1));
                 dataHidratos.push(totCarb.toFixed(1));
                 dataFibra.push(totFibr.toFixed(1));
-                
                 dataProtPerc.push(pPerc.toFixed(1));
                 dataLipPerc.push(lPerc.toFixed(1));
                 dataCarbPerc.push(cPerc.toFixed(1));
@@ -511,73 +466,42 @@
             buildSingleChart('chart-energia', '⚡ Energía Total (kcal)', labels, dataEnergia, '#F39C12', false);
             buildSingleChart('chart-proteinas', '🥩 Proteínas (g)', labels, dataProteinas, '#E74C3C', false);
             buildSingleChart('chart-proteinas-perc', '🥩 Proteínas (% Atwater)', labels, dataProtPerc, '#C0392B', true);
-            
             buildSingleChart('chart-lipidos', '🥑 Lípidos / Grasas (g)', labels, dataLipidos, '#8E44AD', false);
             buildSingleChart('chart-lipidos-perc', '🥑 Lípidos (% Atwater)', labels, dataLipPerc, '#71368A', true);
-            
             buildSingleChart('chart-hidratos', '🍞 Hidratos de Carbono (g)', labels, dataHidratos, '#3498DB', false);
             buildSingleChart('chart-hidratos-perc', '🍞 Hidratos (% Atwater)', labels, dataCarbPerc, '#2980B9', true);
-            
             buildSingleChart('chart-fibra', '🥦 Fibra (g)', labels, dataFibra, '#2ECC71', false);
         }
 
         function buildSingleChart(canvasId, title, labels, data, color, isPercentage) {
             const ctx = document.getElementById(canvasId).getContext('2d');
-            
-            if (chartInstances[canvasId]) {
-                chartInstances[canvasId].destroy();
-            }
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
             chartInstances[canvasId] = new Chart(ctx, {
                 type: 'line', 
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: title,
-                        data: data,
-                        borderColor: color,
-                        backgroundColor: color + '33', 
-                        borderWidth: 3,
-                        pointBackgroundColor: color,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        fill: true,
-                        tension: 0.3 
+                        label: title, data: data, borderColor: color, backgroundColor: color + '33', 
+                        borderWidth: 3, pointBackgroundColor: color, pointRadius: 6, pointHoverRadius: 8, fill: true, tension: 0.3 
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false, 
-                    layout: {
-                        padding: { top: 30 } 
-                    },
+                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 30 } },
                     plugins: {
-                        legend: { display: false }, 
-                        title: { display: true, text: title, font: { size: 16 } },
+                        legend: { display: false }, title: { display: true, text: title, font: { size: 16 } },
                         datalabels: {
-                            align: 'top',
-                            anchor: 'end',
-                            color: '#333',
-                            font: { weight: 'bold', size: 13 },
-                            formatter: function(value) {
-                                return isPercentage ? value + '%' : value;
-                            }
+                            align: 'top', anchor: 'end', color: '#333', font: { weight: 'bold', size: 13 },
+                            formatter: function(value) { return isPercentage ? value + '%' : value; }
                         }
                     },
                     scales: {
-                        y: { 
-                            beginAtZero: true,
-                            max: isPercentage ? 100 : undefined,
-                            ticks: { font: { size: 12 } }
-                        },
-                        x: {
-                            ticks: { font: { size: 12, weight: 'bold' } }
-                        }
+                        y: { beginAtZero: true, max: isPercentage ? 100 : undefined, ticks: { font: { size: 12 } } },
+                        x: { ticks: { font: { size: 12, weight: 'bold' } } }
                     }
                 }
             });
         }
-
 
         // --- RESTO DE FUNCIONES DEL GESTOR (ORIGINALES) ---
         function updateFoodSelectOptions() {
@@ -771,7 +695,7 @@
             if (!selectVal) return;
             if (!confirm("¿Borrar esta dieta permanentemente?")) return;
             
-            // Si la borramos, la sacamos también de la lista de seleccionadas
+            // Si la borramos, la sacamos también de la lista de gráficas
             selectedDietIds = selectedDietIds.filter(id => id !== selectVal);
             
             const { error } = await db.from('dietas').delete().eq('id', selectVal);
@@ -804,7 +728,6 @@
             let item = currentTemplate.find(i => i.id === id);
             if (item) {
                 let originalFood = foodDatabase.find(f => String(f.id) === String(item.foodId));
-                
                 if (originalFood) {
                     let m = newGrams / 100;
                     nutrientColumns.forEach(col => { item[col] = (originalFood[col] * m); });
@@ -812,7 +735,6 @@
                     let ratio = newGrams / item.grams;
                     nutrientColumns.forEach(col => { item[col] = item[col] * ratio; });
                 }
-                
                 item.grams = newGrams;
                 renderTemplate();
             }
@@ -918,39 +840,19 @@
                 if (col === protCol) {
                     let kcals = dailyTotals[col] * 4;
                     cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    
-                    if (totalAtwater > 0) {
-                        let perc = (kcals / totalAtwater) * 100;
-                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
-                    }
-                    
-                    if (patientWeight > 0 && dailyTotals[col] > 0) {
-                        const ratio = (dailyTotals[col] / patientWeight).toFixed(2);
-                        cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`;
-                    }
+                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
+                    if (patientWeight > 0 && dailyTotals[col] > 0) { const ratio = (dailyTotals[col] / patientWeight).toFixed(2); cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`; }
                 } 
                 else if (col === lipCol) {
                     let kcals = dailyTotals[col] * 9;
                     cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    
-                    if (totalAtwater > 0) {
-                        let perc = (kcals / totalAtwater) * 100;
-                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
-                    }
+                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
                 } 
                 else if (col === carbCol) {
                     let kcals = dailyTotals[col] * 4;
                     cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    
-                    if (totalAtwater > 0) {
-                        let perc = (kcals / totalAtwater) * 100;
-                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
-                    }
-                    
-                    if (patientWeight > 0 && dailyTotals[col] > 0) {
-                        const ratio = (dailyTotals[col] / patientWeight).toFixed(2);
-                        cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`;
-                    }
+                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
+                    if (patientWeight > 0 && dailyTotals[col] > 0) { const ratio = (dailyTotals[col] / patientWeight).toFixed(2); cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`; }
                 }
 
                 footHtml += `<td>${cellHtml}</td>`;
