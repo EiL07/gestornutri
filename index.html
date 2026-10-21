@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor Nutricional Clínico</title>
+    <!-- Librerías de Supabase y Gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root { --primary: #2ECC71; --secondary: #27AE60; --dark: #2C3E50; --light: #ECF0F1; --white: #FFFFFF; --accent: #8E44AD; --blue: #3498DB; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--light); color: var(--dark); margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; gap: 20px; }
+        .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h1, h2, h3 { margin-top: 0; color: var(--dark); }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { background-color: var(--primary); color: var(--white); border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { filter: brightness(0.9); }
+        .btn-blue { background-color: var(--blue); }
+        .btn-delete { background-color: #E74C3C; }
+        .btn-delete-small { background-color: #E74C3C; padding: 5px 10px; font-size: 12px; }
+        .btn-toggle { background-color: #F39C12; padding: 12px; font-size: 14px;}
+        .table-responsive { overflow-x: auto; max-height: 600px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: white;}
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
+        th { background-color: var(--dark); color: white; position: sticky; top: 0; z-index: 10; }
+        .meal-header td { background-color: #d1ecf1; font-weight: bold; text-transform: uppercase; color: #0c5460; position: sticky; left: 0;}
+        .subtotals td { background-color: #f8f9fa; font-style: italic; color: #555; }
+        .totals td { font-weight: bold; background-color: #34495E; color: white; }
+        .sticky-col { position: sticky; left: 0; background-color: white; z-index: 5; font-weight: bold; border-right: 2px solid #eee;}
+        th.sticky-col { z-index: 15; background-color: var(--dark); border-right: 2px solid #555;}
+        
+        #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
+        .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .auth-card input { margin-bottom: 20px; }
+        #app-screen { display: none; }
+        
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: var(--dark); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px;}
+        .header-bar h1 { margin: 0; font-size: 1.5em; color: white;}
+        
+        .ratio-badge { background: #F39C12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .perc-badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .atwater-badge { background: #16A085; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .macro-kcal-badge { background: #2980B9; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .meal-perc-badge { background: #2980B9; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: normal; vertical-align: middle; }
+        
+        .edit-grams { width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; margin: 0; font-weight: bold; background: #fdfefe;}
+        .edit-grams:focus { border-color: var(--primary); outline: none; background: #fff;}
+
+        details.card-fold { background: #F4ECF7; border: 2px solid var(--accent); border-radius: 12px; box-shadow: 0 6px 12px rgba(142,68,173,0.15); padding: 0; cursor: pointer; margin-top: 10px; }
+        details.card-fold > summary { background: var(--accent); color: white; padding: 20px 25px; font-size: 1.2em; font-weight: bold; border-radius: 9px; list-style: none; display: flex; justify-content: space-between; align-items: center;}
+        details.card-fold[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        details.card-fold > div { padding: 20px 25px 25px 25px; cursor: default; }
+        
+        .manage-foods-box { background: white; padding: 20px; border-radius: 8px; border: 1px solid #D7BDE2; margin-bottom: 20px; }
+
+        /* SISTEMA DE PESTAÑAS (TABS) */
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: #BDC3C7; color: var(--dark); padding: 12px 25px; font-size: 16px; border-radius: 8px; flex: 1; transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.3); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ESTILOS GRÁFICAS Y ORDENACIÓN POR CLICS */
+        .checklist-dietas { max-height: 400px; overflow-y: auto; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; gap: 5px; }
+        .diet-item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: white; border: 1px solid #eee; border-radius: 6px; transition: 0.2s;}
+        .diet-item-row.selected { background-color: #e8f8f5; border-color: #2ECC71; }
+        .diet-item-row label { font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 0; width: 100%;}
+        .order-badge { background: #2ECC71; color: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; margin-right: 5px; }
+        
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 25px; margin-top: 20px; }
+        .chart-box { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.02); height: 350px; position: relative;}
+        
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE INICIO DE SESIÓN -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <h2 style="font-size: 24px; margin-bottom: 25px;">🥑 Acceso Clínico</h2>
+            <input type="email" id="email" placeholder="Correo electrónico">
+            <input type="password" id="password" placeholder="Contraseña (mínimo 6 caracteres)">
+            <button onclick="login()" style="width: 100%; margin-bottom: 10px;">Entrar</button>
+            <button onclick="register()" class="btn-blue" style="width: 100%; margin-bottom: 15px;">Crear Cuenta Nueva</button>
+            <p id="auth-msg" style="color: #E74C3C; font-weight: bold; font-size: 13px;"></p>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="app-screen" class="container">
+        
+        <div class="header-bar">
+            <h1>🌱 Gestor Nutricional Clínico</h1>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span id="user-display" style="font-weight: bold; color: #2ECC71;"></span>
+                <button onclick="logout()" class="btn-delete-small" style="padding: 8px 15px;">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- MENÚ DE PESTAÑAS -->
+        <div class="tabs-container">
+            <button id="btn-tab-main" class="tab-btn active" onclick="switchTab('main')">📝 Gestor de Dietas</button>
+            <button id="btn-tab-progress" class="tab-btn" onclick="switchTab('progress')">📈 Progreso y Gráficas</button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PESTAÑA 1: GESTOR DE DIETAS (ORIGINAL) -->
+        <!-- ========================================== -->
+        <div id="tab-main" class="tab-content active">
+            
+            <div class="card" style="border-left: 5px solid var(--blue);">
+                <h2>📂 Datos del Paciente y Guardado</h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px;">
+                    <div style="flex: 2; min-width: 250px;">
+                        <label>Nombre del paciente / Dieta:</label>
+                        <input type="text" id="diet-name-input" placeholder="Ej. Menú paciente Carlos - Semana 1">
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <label>Peso paciente (kg):</label>
+                        <input type="number" id="patient-weight" placeholder="Ej. 75" oninput="saveFormState(); renderTemplate();" step="0.1">
+                    </div>
+                    <div><button class="btn-blue" onclick="saveDiet()" style="margin-bottom: 15px;">☁️ Guardar Dieta</button></div>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 15px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                    <div style="flex: 2; min-width: 250px;">
+                        <label>Cargar dieta guardada:</label>
+                        <select id="saved-diets-select"><option value="">Cargando mis dietas...</option></select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="loadDiet()" style="margin-bottom: 15px;">📂 Abrir</button>
+                        <button class="btn-delete" onclick="deleteDiet()" style="margin-bottom: 15px;">🗑️ Borrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Plantilla Diaria</h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <label>Comida:</label>
+                        <select id="meal-select" onchange="saveFormState()">
+                            <option value="Desayuno">Desayuno</option>
+                            <option value="Media mañana">Media mañana</option>
+                            <option value="Comida">Comida</option>
+                            <option value="Media tarde">Media tarde</option>
+                            <option value="Cena">Cena</option>
+                            <option value="Recena">Recena</option>
+                        </select>
+                    </div>
+                    <div style="flex: 2; min-width: 250px;">
+                        <label>Seleccionar Alimento (Catálogo Global):</label>
+                        <select id="food-select" onchange="saveFormState()"><option value="">Cargando...</option></select>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <label>Cantidad (g):</label>
+                        <input type="number" id="grams-input" placeholder="Ej. 150" oninput="saveFormState()">
+                    </div>
+                    <div><button onclick="addToTemplate()" style="margin-bottom: 15px; width: 100%;">➕ Añadir</button></div>
+                </div>
+
+                <button id="toggle-view-btn" class="btn-toggle" onclick="toggleView()" style="margin-bottom: 15px; width: 100%;">👁️ Ver todos los micronutrientes</button>
+
+                <div class="table-responsive">
+                    <table id="template-table">
+                        <thead id="template-head"></thead>
+                        <tbody id="template-body"></tbody>
+                        <tfoot id="template-foot"></tfoot>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 15px; text-align: right;">
+                    <button class="btn-delete" onclick="clearTemplate()">🗑️ Limpiar Plantilla</button>
+                </div>
+            </div>
+
+            <details class="card-fold" id="manual-food-details">
+                <summary>⚙️ Gestionar Mis Alimentos Personalizados <span style="font-size: 0.8em; color: #eee;">▼</span></summary>
+                <div>
+                    <div class="manage-foods-box">
+                        <h3 style="margin-bottom: 10px; color: var(--accent);">🛠️ Modificar o Borrar mis alimentos</h3>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                            <div style="flex: 2; min-width: 250px;">
+                                <label>Selecciona un alimento tuyo:</label>
+                                <select id="my-foods-select"><option value="">Cargando...</option></select>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-blue" onclick="loadMyFoodForEdit()" style="margin-bottom: 15px;">✏️ Cargar para Modificar</button>
+                                <button class="btn-delete" onclick="deleteMyFood()" style="margin-bottom: 15px;">🗑️ Borrar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <hr style="border: 0; border-top: 1px dashed #D7BDE2; margin-bottom: 20px;">
+                    <h3 id="manual-form-title" style="color: var(--dark);">📝 Crear Nuevo Alimento</h3>
+                    <label>Nombre del Alimento:</label>
+                    <input type="text" id="man-name" placeholder="Ej. Avena integral Hacendado" oninput="saveManualFormState()">
+                    <div id="manual-inputs" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 15px; margin-bottom: 15px;"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-save-manual" onclick="saveManualFood()" style="flex: 1; background-color: var(--accent); padding: 12px; font-size: 15px;">💾 Guardar en mi catálogo personal</button>
+                        <button id="btn-cancel-manual" onclick="cancelManualEdit()" style="display: none; background-color: #95A5A6; padding: 12px; font-size: 15px;">❌ Cancelar Modificación</button>
+                    </div>
+                </div>
+            </details>
+
+        </div> <!-- Fin Tab Main -->
+
+        <!-- ========================================== -->
+        <!-- PESTAÑA 2: GRÁFICAS DE PROGRESO            -->
+        <!-- ========================================== -->
+        <div id="tab-progress" class="tab-content">
+            
+            <div class="card" style="border-left: 5px solid #F39C12;">
+                <h2>📊 Analizador de Progreso y Comparativa</h2>
+                <p style="color: #666; font-size: 14px;">Haz clic en las dietas para seleccionarlas. Se ordenarán y graficarán <b>en el orden exacto en el que las vayas marcando.</b></p>
+                
+                <div class="checklist-dietas" id="diet-checklist-container">
+                    <!-- Aquí se generan los checkboxes por JS -->
+                </div>
+
+                <button class="btn-toggle" onclick="generateCharts()" style="margin-top: 15px; margin-bottom: 0;">📊 Generar Gráficas de Evolución</button>
+            </div>
+
+            <div class="charts-grid" id="charts-wrapper" style="display: none;">
+                <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-energia"></canvas></div>
+                
+                <div class="chart-box"><canvas id="chart-proteinas"></canvas></div>
+                <div class="chart-box"><canvas id="chart-proteinas-perc"></canvas></div>
+                
+                <div class="chart-box"><canvas id="chart-lipidos"></canvas></div>
+                <div class="chart-box"><canvas id="chart-lipidos-perc"></canvas></div>
+                
+                <div class="chart-box"><canvas id="chart-hidratos"></canvas></div>
+                <div class="chart-box"><canvas id="chart-hidratos-perc"></canvas></div>
+                
+                <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-fibra"></canvas></div>
+            </div>
+
+        </div> <!-- Fin Tab Progress -->
+
+    </div>
+
+    <script>
+        // Registrar el plugin de etiquetas numéricas en Chart.js
+        Chart.register(ChartDataLabels);
+
+        // ==========================================
+        // 🔑 TUS CLAVES DE SUPABASE AQUÍ 🔑
+        const supabaseUrl = 'https://qieyzthjzotrjcvvvtqf.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpZXl6dGhqem90cmpjdnZ2dHFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwODM3NTcsImV4cCI6MjEwNTY1OTc1N30.GNwbDe2fY6LkO5n-n-6rOkTdVxFT1zaM5ckaVMFPv4U';
+        // ==========================================
+
+        const db = supabase.createClient(supabaseUrl, supabaseKey);
+        let currentUser = null;
+
+        db.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                currentUser = session.user;
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                document.getElementById('user-display').textContent = `👤 ${currentUser.email}`;
+                initApp(); 
+            } else {
+                currentUser = null;
+                document.getElementById('auth-screen').style.display = 'flex';
+                document.getElementById('app-screen').style.display = 'none';
+            }
+        });
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('auth-msg');
+            msg.textContent = "Creando cuenta...";
+            const { data, error } = await db.auth.signUp({ email, password });
+            if (error) { msg.textContent = error.message; } 
+            else { msg.textContent = "¡Cuenta creada! Ya puedes entrar."; msg.style.color = "green"; }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('auth-msg');
+            msg.textContent = "Entrando...";
+            const { data, error } = await db.auth.signInWithPassword({ email, password });
+            if (error) { msg.textContent = "Correo o contraseña incorrectos."; msg.style.color = "#E74C3C"; }
+        }
+
+        async function logout() { await db.auth.signOut(); }
+
+        // VARIABLES GLOBALES
+        const mealOrder = ['Desayuno', 'Media mañana', 'Comida', 'Media tarde', 'Cena', 'Recena'];
+        let foodDatabase = [], nutrientColumns = [], savedDiets = [], currentTemplate = [], showAllMicros = false;
+        let editingFoodId = null; 
+        
+        let chartInstances = {};
+        
+        // ARRAY PARA GUARDAR EL ORDEN EXACTO DE LOS CLICS EN LAS DIETAS
+        let selectedDietIds = [];
+
+        // CONTROL DE PESTAÑAS
+        function switchTab(tab) {
+            document.getElementById('tab-main').classList.remove('active');
+            document.getElementById('tab-progress').classList.remove('active');
+            document.getElementById('btn-tab-main').classList.remove('active');
+            document.getElementById('btn-tab-progress').classList.remove('active');
+
+            if(tab === 'main') {
+                document.getElementById('tab-main').classList.add('active');
+                document.getElementById('btn-tab-main').classList.add('active');
+            } else {
+                document.getElementById('tab-progress').classList.add('active');
+                document.getElementById('btn-tab-progress').classList.add('active');
+                renderDietChecklist(); 
+            }
+        }
+
+        async function initApp() { 
+            try {
+                let { data: foodData, error: foodErr } = await db.from('alimentos')
+                    .select('*')
+                    .or(`user_id.is.null,user_id.eq.${currentUser.id}`);
+                
+                if (foodErr) {
+                    const res = await db.from('alimentos').select('*');
+                    foodData = res.data;
+                }
+
+                if (foodData && foodData.length > 0) {
+                    foodDatabase = foodData.map(item => ({ id: item.id, alimento: item.nombre, user_id: item.user_id, ...item.nutrientes }));
+                    let exactOrder = ['Energía', 'Proteína total', 'Proteínas', 'Lípidos totales', 'Lípidos', 'Hidratos de Carbono', 'Hidratos', 'Fibra'];
+                    let rawCols = Object.keys(foodData[0].nutrientes);
+                    nutrientColumns = exactOrder.filter(c => rawCols.includes(c)).concat(rawCols.filter(c => !exactOrder.includes(c)));
+                    
+                    if(document.getElementById('manual-inputs').innerHTML.trim() === '') {
+                        buildManualForm();
+                    }
+                }
+
+                const { data: dietData } = await db.from('dietas').select('*').eq('user_id', currentUser.id);
+                if (dietData) {
+                    savedDiets = dietData.map(d => ({ id: d.id, name: d.nombre, weight: d.peso, template: d.plantilla }));
+                    savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
+                }
+
+                updateFoodSelectOptions(); 
+                updateMyFoodsSelect(); 
+                updateDietSelectOptions();
+                restoreFormState();
+                renderTemplate();
+            } catch (err) { console.error(err); alert("Error cargando los datos."); }
+        }
+
+        // --- SISTEMA DE GRÁFICAS Y ORDENACIÓN AUTOMÁTICA POR CLIC ---
+        function renderDietChecklist() {
+            const container = document.getElementById('diet-checklist-container');
+            container.innerHTML = '';
+            
+            if(savedDiets.length === 0) {
+                container.innerHTML = '<p style="color: #E74C3C; font-weight: bold; margin: 0;">No tienes dietas guardadas todavía. Guarda algunas en la pestaña principal primero.</p>';
+                return;
+            }
+
+            // 1. Mostrar primero las dietas NO SELECCIONADAS
+            let unselectedDiets = savedDiets.filter(d => !selectedDietIds.includes(String(d.id)));
+            unselectedDiets.forEach(diet => {
+                container.innerHTML += `
+                    <div class="diet-item-row">
+                        <label>
+                            <input type="checkbox" class="diet-checkbox" value="${diet.id}" onchange="handleDietCheck(this)">
+                            ${diet.name}
+                        </label>
+                    </div>
+                `;
+            });
+
+            // 2. Mostrar al final las dietas SELECCIONADAS (en el orden exacto de clics)
+            let selectedDiets = [];
+            selectedDietIds.forEach(id => {
+                let found = savedDiets.find(d => String(d.id) === String(id));
+                if(found) selectedDiets.push(found);
+            });
+
+            selectedDiets.forEach((diet, index) => {
+                container.innerHTML += `
+                    <div class="diet-item-row selected">
+                        <label>
+                            <input type="checkbox" class="diet-checkbox" value="${diet.id}" checked onchange="handleDietCheck(this)">
+                            <span class="order-badge">${index + 1}</span>
+                            <span style="font-weight: bold; color: #27AE60;">${diet.name}</span>
+                        </label>
+                    </div>
+                `;
+            });
+        }
+
+        function handleDietCheck(checkbox) {
+            const id = checkbox.value;
+            if(checkbox.checked) {
+                // Si la marca, la metemos a la lista (al final)
+                if(!selectedDietIds.includes(id)) {
+                    selectedDietIds.push(id);
+                }
+            } else {
+                // Si la desmarca, la sacamos de la lista
+                selectedDietIds = selectedDietIds.filter(item => item !== id);
+            }
+            
+            // Volvemos a dibujar la lista para que se mueva arriba/abajo
+            renderDietChecklist();
+            
+            // Si las gráficas están visibles, las actualizamos en tiempo real
+            if (document.getElementById('charts-wrapper').style.display !== 'none') {
+                generateCharts();
+            }
+        }
+
+        function generateCharts() {
+            if (selectedDietIds.length === 0) {
+                alert("Selecciona al menos una dieta marcando la casilla para generar la gráfica.");
+                document.getElementById('charts-wrapper').style.display = 'none';
+                return;
+            }
+
+            // Usamos directamente el array selectedDietIds para asegurar el orden exacto
+            let dietsToPlot = [];
+            selectedDietIds.forEach(id => {
+                const diet = savedDiets.find(d => String(d.id) === String(id));
+                if(diet) dietsToPlot.push(diet);
+            });
+
+            document.getElementById('charts-wrapper').style.display = 'grid';
+
+            const getCol = (terms) => nutrientColumns.find(c => terms.some(t => c.toLowerCase().includes(t)));
+            let engCol = getCol(['energ', 'kcal']);
+            let protCol = getCol(['prot']);
+            let lipCol = getCol(['lípid', 'lipid', 'grasas']);
+            let carbCol = getCol(['hidrat', 'carb']);
+            let fibrCol = getCol(['fibr']);
+
+            let labels = [];
+            let dataEnergia = [], dataProteinas = [], dataLipidos = [], dataHidratos = [], dataFibra = [];
+            let dataProtPerc = [], dataLipPerc = [], dataCarbPerc = [];
+
+            dietsToPlot.forEach(diet => {
+                labels.push(diet.name);
+                
+                let totEng = 0, totProt = 0, totLip = 0, totCarb = 0, totFibr = 0;
+                
+                diet.template.forEach(item => {
+                    if(engCol) totEng += item[engCol] || 0;
+                    if(protCol) totProt += item[protCol] || 0;
+                    if(lipCol) totLip += item[lipCol] || 0;
+                    if(carbCol) totCarb += item[carbCol] || 0;
+                    if(fibrCol) totFibr += item[fibrCol] || 0;
+                });
+
+                let atwater = (totProt * 4) + (totLip * 9) + (totCarb * 4);
+                let pPerc = atwater > 0 ? ((totProt * 4) / atwater) * 100 : 0;
+                let lPerc = atwater > 0 ? ((totLip * 9) / atwater) * 100 : 0;
+                let cPerc = atwater > 0 ? ((totCarb * 4) / atwater) * 100 : 0;
+
+                dataEnergia.push(totEng.toFixed(1));
+                dataProteinas.push(totProt.toFixed(1));
+                dataLipidos.push(totLip.toFixed(1));
+                dataHidratos.push(totCarb.toFixed(1));
+                dataFibra.push(totFibr.toFixed(1));
+                
+                dataProtPerc.push(pPerc.toFixed(1));
+                dataLipPerc.push(lPerc.toFixed(1));
+                dataCarbPerc.push(cPerc.toFixed(1));
+            });
+
+            buildSingleChart('chart-energia', '⚡ Energía Total (kcal)', labels, dataEnergia, '#F39C12', false);
+            buildSingleChart('chart-proteinas', '🥩 Proteínas (g)', labels, dataProteinas, '#E74C3C', false);
+            buildSingleChart('chart-proteinas-perc', '🥩 Proteínas (% Atwater)', labels, dataProtPerc, '#C0392B', true);
+            
+            buildSingleChart('chart-lipidos', '🥑 Lípidos / Grasas (g)', labels, dataLipidos, '#8E44AD', false);
+            buildSingleChart('chart-lipidos-perc', '🥑 Lípidos (% Atwater)', labels, dataLipPerc, '#71368A', true);
+            
+            buildSingleChart('chart-hidratos', '🍞 Hidratos de Carbono (g)', labels, dataHidratos, '#3498DB', false);
+            buildSingleChart('chart-hidratos-perc', '🍞 Hidratos (% Atwater)', labels, dataCarbPerc, '#2980B9', true);
+            
+            buildSingleChart('chart-fibra', '🥦 Fibra (g)', labels, dataFibra, '#2ECC71', false);
+        }
+
+        function buildSingleChart(canvasId, title, labels, data, color, isPercentage) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'line', 
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: title,
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '33', 
+                        borderWidth: 3,
+                        pointBackgroundColor: color,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        fill: true,
+                        tension: 0.3 
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, 
+                    layout: {
+                        padding: { top: 30 } 
+                    },
+                    plugins: {
+                        legend: { display: false }, 
+                        title: { display: true, text: title, font: { size: 16 } },
+                        datalabels: {
+                            align: 'top',
+                            anchor: 'end',
+                            color: '#333',
+                            font: { weight: 'bold', size: 13 },
+                            formatter: function(value) {
+                                return isPercentage ? value + '%' : value;
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            max: isPercentage ? 100 : undefined,
+                            ticks: { font: { size: 12 } }
+                        },
+                        x: {
+                            ticks: { font: { size: 12, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- RESTO DE FUNCIONES DEL GESTOR (ORIGINALES) ---
+        function updateFoodSelectOptions() {
+            const select = document.getElementById('food-select');
+            select.innerHTML = '<option value="">--- Selecciona un alimento ---</option>';
+            foodDatabase.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => {
+                const option = document.createElement('option');
+                option.value = food.id; 
+                option.textContent = food.user_id ? `👤 ${food.alimento}` : food.alimento; 
+                select.appendChild(option);
+            });
+        }
+
+        function updateMyFoodsSelect() {
+            const select = document.getElementById('my-foods-select');
+            select.innerHTML = '<option value="">--- Selecciona un alimento tuyo ---</option>';
+            const myFoods = foodDatabase.filter(f => f.user_id === currentUser.id);
+            if (myFoods.length === 0) { select.innerHTML = '<option value="">No has creado ningún alimento todavía</option>'; return; }
+            myFoods.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => {
+                const option = document.createElement('option');
+                option.value = food.id; option.textContent = food.alimento; select.appendChild(option);
+            });
+        }
+
+        function buildManualForm() {
+            const container = document.getElementById('manual-inputs');
+            container.innerHTML = '';
+            nutrientColumns.forEach((col, index) => {
+                container.innerHTML += `<div><label title="${col}">${col.length > 15 ? col.substring(0,12)+'...' : col}:</label><input type="number" step="any" id="man-nut-${index}" placeholder="0" oninput="saveManualFormState()"></div>`;
+            });
+            restoreManualFormState();
+        }
+
+        function saveManualFormState() {
+            let state = { name: document.getElementById('man-name').value, editingId: editingFoodId, nutrients: {} };
+            nutrientColumns.forEach((col, index) => {
+                const input = document.getElementById(`man-nut-${index}`);
+                if (input) state.nutrients[index] = input.value;
+            });
+            localStorage.setItem('temp_manual_food', JSON.stringify(state));
+        }
+
+        function restoreManualFormState() {
+            const saved = localStorage.getItem('temp_manual_food');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    if (state.name) { document.getElementById('man-name').value = state.name; document.getElementById('manual-food-details').open = true; }
+                    if (state.editingId) {
+                        editingFoodId = state.editingId;
+                        document.getElementById('manual-form-title').innerHTML = "✏️ Editando (Borrador Recuperado)";
+                        document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento";
+                        document.getElementById('btn-cancel-manual').style.display = 'block';
+                    }
+                    nutrientColumns.forEach((col, index) => {
+                        const input = document.getElementById(`man-nut-${index}`);
+                        if (input && state.nutrients && state.nutrients[index] !== undefined) input.value = state.nutrients[index];
+                    });
+                } catch(e) {}
+            }
+        }
+
+        function clearManualFormState() { localStorage.removeItem('temp_manual_food'); }
+
+        async function deleteMyFood() {
+            const foodId = document.getElementById('my-foods-select').value;
+            if (!foodId) return alert("Selecciona uno de tus alimentos de la lista para borrarlo.");
+            if (!confirm("¿Estás seguro de que quieres borrar este alimento de tu catálogo?")) return;
+            const { error } = await db.from('alimentos').delete().eq('id', foodId);
+            if (error) alert("Error al borrar: " + error.message);
+            else { alert("Alimento eliminado correctamente."); cancelManualEdit(); initApp(); }
+        }
+
+        function loadMyFoodForEdit() {
+            const foodId = document.getElementById('my-foods-select').value;
+            if (!foodId) return alert("Selecciona uno de tus alimentos de la lista para modificarlo.");
+            const food = foodDatabase.find(f => String(f.id) === String(foodId));
+            if (!food) return;
+
+            editingFoodId = food.id;
+            document.getElementById('man-name').value = food.alimento;
+            document.getElementById('manual-form-title').innerHTML = "✏️ Editando: <span style='color: var(--accent);'>" + food.alimento + "</span>";
+            document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento";
+            document.getElementById('btn-cancel-manual').style.display = 'block';
+            
+            nutrientColumns.forEach((col, index) => {
+                const input = document.getElementById(`man-nut-${index}`);
+                if (input) input.value = food[col] !== undefined ? food[col] : 0;
+            });
+            saveManualFormState();
+        }
+
+        function cancelManualEdit() {
+            editingFoodId = null;
+            document.getElementById('man-name').value = '';
+            document.getElementById('manual-form-title').textContent = "📝 Crear Nuevo Alimento";
+            document.getElementById('btn-save-manual').textContent = "💾 Guardar en mi catálogo personal";
+            document.getElementById('btn-cancel-manual').style.display = 'none';
+            document.getElementById('my-foods-select').value = '';
+            nutrientColumns.forEach((col, index) => {
+                const input = document.getElementById(`man-nut-${index}`);
+                if (input) input.value = '';
+            });
+            clearManualFormState();
+        }
+
+        async function saveManualFood() {
+            const name = document.getElementById('man-name').value.trim();
+            if (!name) return alert("Ponle un nombre al alimento.");
+            
+            let nutrientesObj = {};
+            nutrientColumns.forEach((col, index) => {
+                const input = document.getElementById(`man-nut-${index}`);
+                let rawVal = input ? input.value.replace(',', '.') : "0";
+                nutrientesObj[col] = parseFloat(rawVal) || 0;
+            });
+            
+            if (editingFoodId) {
+                const { error } = await db.from('alimentos').update({ nombre: name, nutrientes: nutrientesObj }).eq('id', editingFoodId);
+                if (error) alert("Error al actualizar: " + error.message);
+                else { alert(`¡"${name}" actualizado correctamente!`); clearManualFormState(); cancelManualEdit(); initApp(); }
+            } else {
+                const { error } = await db.from('alimentos').insert([{ nombre: name, nutrientes: nutrientesObj, user_id: currentUser.id }]);
+                if (error) alert("Error al guardar: " + error.message);
+                else { alert(`¡"${name}" guardado correctamente en tu catálogo personal!`); clearManualFormState(); cancelManualEdit(); initApp(); }
+            }
+        }
+
+        function updateDietSelectOptions() {
+            const select = document.getElementById('saved-diets-select');
+            select.innerHTML = savedDiets.length === 0 ? '<option value="">No tienes dietas guardadas...</option>' : '<option value="">--- Selecciona una dieta ---</option>';
+            [...savedDiets].reverse().forEach(diet => {
+                const option = document.createElement('option');
+                option.value = diet.id; option.textContent = diet.name; select.appendChild(option);
+            });
+        }
+
+        function saveFormState() {
+            const state = {
+                meal: document.getElementById('meal-select').value,
+                food: document.getElementById('food-select').value,
+                grams: document.getElementById('grams-input').value,
+                weight: document.getElementById('patient-weight').value
+            };
+            localStorage.setItem('temp_form_state', JSON.stringify(state));
+        }
+
+        function restoreFormState() {
+            const saved = localStorage.getItem('temp_form_state');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    if (state.meal) document.getElementById('meal-select').value = state.meal;
+                    if (state.food) document.getElementById('food-select').value = state.food;
+                    if (state.grams) document.getElementById('grams-input').value = state.grams;
+                    if (state.weight) document.getElementById('patient-weight').value = state.weight;
+                } catch(e) {}
+            }
+        }
+
+        async function saveDiet() {
+            if (currentTemplate.length === 0) return alert("La plantilla está vacía.");
+            const dietName = document.getElementById('diet-name-input').value.trim();
+            const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
+            if (!dietName) return alert("Ponle nombre a la dieta.");
+
+            const { error } = await db.from('dietas').insert([{
+                nombre: dietName, peso: patientWeight, plantilla: currentTemplate, user_id: currentUser.id
+            }]);
+
+            if (error) alert("Error: " + error.message);
+            else { alert(`Dieta guardada.`); document.getElementById('diet-name-input').value = ''; initApp(); }
+        }
+
+        function loadDiet() {
+            const selectVal = document.getElementById('saved-diets-select').value;
+            if (!selectVal) return alert("Selecciona una dieta.");
+            if (currentTemplate.length > 0 && !confirm("¿Sustituir la plantilla actual?")) return;
+            const diet = savedDiets.find(d => String(d.id) === String(selectVal));
+            if (diet) { 
+                currentTemplate = JSON.parse(JSON.stringify(diet.template)); 
+                document.getElementById('diet-name-input').value = diet.name;
+                document.getElementById('patient-weight').value = diet.weight || '';
+                saveFormState();
+                renderTemplate(); 
+            }
+        }
+
+        async function deleteDiet() {
+            const selectVal = document.getElementById('saved-diets-select').value;
+            if (!selectVal) return;
+            if (!confirm("¿Borrar esta dieta permanentemente?")) return;
+            
+            // Si la borramos, la sacamos también de la lista de seleccionadas
+            selectedDietIds = selectedDietIds.filter(id => id !== selectVal);
+            
+            const { error } = await db.from('dietas').delete().eq('id', selectVal);
+            if (!error) { alert("Borrada."); initApp(); }
+        }
+
+        function addToTemplate() {
+            const selectVal = document.getElementById('food-select').value;
+            const grams = parseFloat(document.getElementById('grams-input').value);
+            const meal = document.getElementById('meal-select').value;
+            if(!selectVal || !grams || grams <= 0) return alert("Completa los datos del alimento.");
+            
+            const food = foodDatabase.find(f => String(f.id) === String(selectVal));
+            const m = grams / 100;
+            let item = { id: Date.now(), meal: meal, foodId: food.id, name: food.alimento, grams: grams };
+            nutrientColumns.forEach(col => { item[col] = (food[col] * m); });
+            currentTemplate.push(item);
+            
+            document.getElementById('food-select').value = "";
+            document.getElementById('grams-input').value = "";
+            saveFormState();
+            
+            renderTemplate();
+        }
+        
+        function updateItemGrams(id, newGrams) {
+            newGrams = parseFloat(newGrams);
+            if (!newGrams || newGrams <= 0) return;
+            
+            let item = currentTemplate.find(i => i.id === id);
+            if (item) {
+                let originalFood = foodDatabase.find(f => String(f.id) === String(item.foodId));
+                
+                if (originalFood) {
+                    let m = newGrams / 100;
+                    nutrientColumns.forEach(col => { item[col] = (originalFood[col] * m); });
+                } else {
+                    let ratio = newGrams / item.grams;
+                    nutrientColumns.forEach(col => { item[col] = item[col] * ratio; });
+                }
+                
+                item.grams = newGrams;
+                renderTemplate();
+            }
+        }
+
+        function removeFromTemplate(id) { currentTemplate = currentTemplate.filter(item => item.id !== id); renderTemplate(); }
+        function clearTemplate() { if (currentTemplate.length > 0 && confirm("¿Limpiar todo?")) { currentTemplate = []; renderTemplate(); } }
+        function toggleView() { showAllMicros = !showAllMicros; document.getElementById('toggle-view-btn').innerHTML = showAllMicros ? "👁️ Ocultar micronutrientes" : "👁️ Ver todos los micronutrientes"; renderTemplate(); }
+
+        function renderTemplate() {
+            const basicCols = ['Energía', 'Proteína total', 'Proteínas', 'Lípidos totales', 'Lípidos', 'Hidratos de Carbono', 'Hidratos', 'Fibra'];
+            let visibleCols = nutrientColumns.filter(c => basicCols.includes(c));
+            if(visibleCols.length === 0) visibleCols = nutrientColumns.slice(0,5);
+            
+            const colsToRender = showAllMicros ? nutrientColumns : visibleCols;
+            if (colsToRender.length === 0) return;
+            
+            const getCol = (terms) => colsToRender.find(c => terms.some(t => c.toLowerCase().includes(t)));
+            let protCol = getCol(['prot']);
+            let lipCol = getCol(['lípid', 'lipid', 'grasas']);
+            let carbCol = getCol(['hidrat', 'carb']);
+
+            const patientWeight = parseFloat(document.getElementById('patient-weight').value);
+
+            let totalAtwater = 0;
+            let dailyTotals = {}; 
+            colsToRender.forEach(col => dailyTotals[col] = 0);
+
+            currentTemplate.forEach(item => {
+                colsToRender.forEach(col => { dailyTotals[col] += item[col]; });
+            });
+
+            if (protCol && lipCol && carbCol) {
+                let p = dailyTotals[protCol] || 0;
+                let l = dailyTotals[lipCol] || 0;
+                let c = dailyTotals[carbCol] || 0;
+                totalAtwater = (p * 4) + (l * 9) + (c * 4);
+            }
+
+            const thead = document.getElementById('template-head');
+            let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`;
+            colsToRender.forEach(col => headHtml += `<th>${col}</th>`);
+            thead.innerHTML = headHtml + `<th>X</th></tr>`;
+
+            const tbody = document.getElementById('template-body'); 
+            tbody.innerHTML = '';
+
+            mealOrder.forEach(meal => {
+                const items = currentTemplate.filter(i => i.meal === meal);
+                if(items.length > 0) {
+                    let mealTotals = {}; 
+                    colsToRender.forEach(col => mealTotals[col] = 0);
+                    
+                    items.forEach(item => {
+                        colsToRender.forEach(col => { mealTotals[col] += item[col]; });
+                    });
+
+                    let mealAtwater = 0;
+                    if (protCol && lipCol && carbCol) {
+                        let mp = mealTotals[protCol] || 0;
+                        let ml = mealTotals[lipCol] || 0;
+                        let mc = mealTotals[carbCol] || 0;
+                        mealAtwater = (mp * 4) + (ml * 9) + (mc * 4);
+                    }
+
+                    let mealPercentageText = "";
+                    if (totalAtwater > 0) {
+                        let percMeal = (mealAtwater / totalAtwater) * 100;
+                        mealPercentageText = `<span class="meal-perc-badge">${percMeal.toFixed(1)}% del día</span>`;
+                    }
+
+                    tbody.innerHTML += `<tr class="meal-header"><td colspan="${colsToRender.length + 3}">${meal} ${mealPercentageText}</td></tr>`;
+                    
+                    items.forEach(item => {
+                        let rowHtml = `<tr><td class="sticky-col">${item.name}</td>
+                        <td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
+                        
+                        colsToRender.forEach(col => { rowHtml += `<td>${item[col].toFixed(1)}</td>`; });
+                        tbody.innerHTML += rowHtml + `<td><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
+                    });
+
+                    let subHtml = `<tr class="subtotals"><td class="sticky-col" style="text-align:right">Subtotal:`;
+                    if (mealAtwater > 0) {
+                        subHtml += `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>`;
+                    }
+                    subHtml += `</td><td>-</td>`;
+                    
+                    colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`);
+                    tbody.innerHTML += subHtml + `<td></td></tr>`;
+                }
+            });
+
+            const tfoot = document.getElementById('template-foot');
+            let footHtml = `<tr class="totals"><td class="sticky-col">TOTAL DÍA`;
+            if (totalAtwater > 0) {
+                footHtml += `<br><span class="atwater-badge">${totalAtwater.toFixed(1)} kcal (Atwater)</span>`;
+            }
+            footHtml += `</td><td>-</td>`;
+
+            colsToRender.forEach(col => {
+                let cellHtml = dailyTotals[col].toFixed(1);
+
+                if (col === protCol) {
+                    let kcals = dailyTotals[col] * 4;
+                    cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
+                    
+                    if (totalAtwater > 0) {
+                        let perc = (kcals / totalAtwater) * 100;
+                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
+                    }
+                    
+                    if (patientWeight > 0 && dailyTotals[col] > 0) {
+                        const ratio = (dailyTotals[col] / patientWeight).toFixed(2);
+                        cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`;
+                    }
+                } 
+                else if (col === lipCol) {
+                    let kcals = dailyTotals[col] * 9;
+                    cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
+                    
+                    if (totalAtwater > 0) {
+                        let perc = (kcals / totalAtwater) * 100;
+                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
+                    }
+                } 
+                else if (col === carbCol) {
+                    let kcals = dailyTotals[col] * 4;
+                    cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
+                    
+                    if (totalAtwater > 0) {
+                        let perc = (kcals / totalAtwater) * 100;
+                        cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`;
+                    }
+                    
+                    if (patientWeight > 0 && dailyTotals[col] > 0) {
+                        const ratio = (dailyTotals[col] / patientWeight).toFixed(2);
+                        cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`;
+                    }
+                }
+
+                footHtml += `<td>${cellHtml}</td>`;
+            });
+            tfoot.innerHTML = footHtml + `<td></td></tr>`;
+        }
+    </script>
+</body>
+</html>
