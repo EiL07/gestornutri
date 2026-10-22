@@ -83,7 +83,7 @@
         .ficha-section h3 { border-bottom: 2px solid var(--primary); padding-bottom: 8px; color: var(--primary); margin-bottom: 15px;}
         .form-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .form-table th, .form-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .form-table th { background-color: #f8f9fa; color: var(--dark) !important; font-weight: bold; }
+        .form-table th { background-color: #f8f9fa; color: var(--dark) !important; font-weight: bold; } 
         .form-table input[type="text"], .form-table input[type="number"] { margin-bottom: 0; border: none; background: transparent; padding: 5px; }
         .form-table input:focus { background: white; outline: 1px solid var(--primary); }
         
@@ -96,7 +96,6 @@
 </head>
 <body>
 
-    <!-- PANTALLA DE INICIO DE SESIÓN -->
     <div id="auth-screen">
         <div class="auth-card">
             <h2 style="font-size: 24px; margin-bottom: 25px;">🥑 Acceso Clínico</h2>
@@ -108,7 +107,6 @@
         </div>
     </div>
 
-    <!-- APLICACIÓN PRINCIPAL -->
     <div id="app-screen" class="container">
         
         <div class="header-bar">
@@ -266,10 +264,11 @@
 
             <div class="card" id="ficha-form">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2>Ficha Dietética</h2>
-                    <div>
-                        <button class="btn-blue" onclick="saveFicha()">💾 Guardar Ficha</button>
-                        <button class="btn-delete" onclick="clearFicha()">Limpiar Formulario</button>
+                    <h2 id="ficha-form-title">📋 Nueva Ficha Dietética</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-blue" id="btn-save-ficha" onclick="saveFicha()">💾 Guardar Ficha</button>
+                        <button class="btn-delete" id="btn-new-ficha" onclick="clearFicha(true)" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
+                        <button class="btn-delete" onclick="clearFicha()">🗑️ Limpiar</button>
                     </div>
                 </div>
 
@@ -332,11 +331,23 @@
                         <label><input type="radio" name="f-farmacos" value="Si" class="f-input"> Sí</label>
                         <label><input type="radio" name="f-farmacos" value="No" class="f-input"> No</label>
                     </div>
-                    <table class="form-table">
-                        <tr><th>Fármaco</th><th>Dosis</th><th>Principio activo</th><th>Desayuno</th><th>Comida</th><th>Cena</th></tr>
-                        <tr><td><input type="text" id="f-f1-nombre" class="f-input"></td><td><input type="text" id="f-f1-dosis" class="f-input"></td><td><input type="text" id="f-f1-pa" class="f-input"></td><td><input type="text" id="f-f1-des" class="f-input"></td><td><input type="text" id="f-f1-com" class="f-input"></td><td><input type="text" id="f-f1-cen" class="f-input"></td></tr>
-                        <tr><td><input type="text" id="f-f2-nombre" class="f-input"></td><td><input type="text" id="f-f2-dosis" class="f-input"></td><td><input type="text" id="f-f2-pa" class="f-input"></td><td><input type="text" id="f-f2-des" class="f-input"></td><td><input type="text" id="f-f2-com" class="f-input"></td><td><input type="text" id="f-f2-cen" class="f-input"></td></tr>
+                    
+                    <table class="form-table" style="margin-bottom: 5px;">
+                        <thead>
+                            <tr><th>Fármaco</th><th>Dosis</th><th>Principio activo</th><th style="text-align:center;">Desayuno</th><th style="text-align:center;">Comida</th><th style="text-align:center;">Cena</th></tr>
+                        </thead>
+                        <tbody id="farmacos-tbody">
+                            <tr>
+                                <td><input type="text" id="f-f1-nombre" class="f-input"></td>
+                                <td><input type="text" id="f-f1-dosis" class="f-input"></td>
+                                <td><input type="text" id="f-f1-pa" class="f-input"></td>
+                                <td style="text-align:center;"><input type="checkbox" id="f-f1-des" class="f-input"></td>
+                                <td style="text-align:center;"><input type="checkbox" id="f-f1-com" class="f-input"></td>
+                                <td style="text-align:center;"><input type="checkbox" id="f-f1-cen" class="f-input"></td>
+                            </tr>
+                        </tbody>
                     </table>
+                    <button type="button" class="btn-blue" style="padding: 5px 10px; font-size: 12px; margin-bottom: 15px;" onclick="addFarmacoRow()">➕ Añadir fila</button>
                 </div>
 
                 <!-- 3. DATOS DE INTERÉS MUJER / NIÑOS -->
@@ -548,9 +559,6 @@
                     </div>
                 </div>
 
-                <div style="text-align: right; margin-top: 20px;">
-                    <button class="btn-blue" onclick="saveFicha()" style="padding: 15px 30px; font-size: 16px;">💾 Guardar Ficha</button>
-                </div>
             </div>
         </div> <!-- Fin Tab Ficha -->
 
@@ -568,7 +576,7 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
-        // Lógica mejorada para deseleccionar Radio Buttons en toda la app
+        // ACTIVAR DESELECCIÓN DE RADIO BUTTONS AL VOLVER A CLICKAR
         let lastRadioClicked = null;
         document.addEventListener('mousedown', (e) => {
             if (e.target.type === 'radio') {
@@ -579,6 +587,8 @@
             if (e.target.type === 'radio' && lastRadioClicked === e.target) {
                 e.target.checked = false;
                 lastRadioClicked = null;
+                // Forzamos disparar un evento de cambio por si guarda estado
+                e.target.dispatchEvent(new Event('change'));
             }
         });
 
@@ -621,6 +631,7 @@
         let foodDatabase = [], nutrientColumns = [], savedDiets = [], currentTemplate = [], showAllMicros = false;
         let editingFoodId = null, chartInstances = {}, selectedDietIds = [];
         let savedFichas = []; 
+        let farmacosRowCount = 1; // Contador global de filas de fármacos
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -661,6 +672,21 @@
         }
 
         // --- SISTEMA DE FICHAS DIETÉTICAS ---
+
+        function addFarmacoRow() {
+            farmacosRowCount++;
+            const tbody = document.getElementById('farmacos-tbody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" id="f-f${farmacosRowCount}-nombre" class="f-input"></td>
+                <td><input type="text" id="f-f${farmacosRowCount}-dosis" class="f-input"></td>
+                <td><input type="text" id="f-f${farmacosRowCount}-pa" class="f-input"></td>
+                <td style="text-align:center;"><input type="checkbox" id="f-f${farmacosRowCount}-des" class="f-input"></td>
+                <td style="text-align:center;"><input type="checkbox" id="f-f${farmacosRowCount}-com" class="f-input"></td>
+                <td style="text-align:center;"><input type="checkbox" id="f-f${farmacosRowCount}-cen" class="f-input"></td>
+            `;
+            tbody.appendChild(tr);
+        }
         
         function calcIMC() {
             let peso = parseFloat(document.getElementById('f-peso').value);
@@ -702,10 +728,14 @@
 
             if (fichaId) {
                 const { error } = await db.from('fichas_pacientes').update({ nombre: nombre, datos: datos }).eq('id', fichaId);
-                if(error) alert(error.message); else { alert("Ficha actualizada."); initApp(); }
+                if(error) alert(error.message); else { alert("Ficha actualizada correctamente."); initApp(); }
             } else {
                 const { error } = await db.from('fichas_pacientes').insert([{ nombre: nombre, datos: datos, user_id: currentUser.id }]);
-                if(error) alert(error.message); else { alert("Ficha guardada."); initApp(); }
+                if(error) alert(error.message); else { 
+                    alert("Ficha guardada correctamente."); 
+                    clearFicha(true);
+                    initApp(); 
+                }
             }
         }
 
@@ -717,6 +747,16 @@
                 document.getElementById('f-id').value = ficha.id;
                 const datos = typeof ficha.datos === 'string' ? JSON.parse(ficha.datos) : ficha.datos;
                 
+                // Asegurar que hay suficientes filas de fármacos
+                let maxFarmaco = 0;
+                for (let key in datos) {
+                    if (key.startsWith('f-f') && key.endsWith('-nombre')) {
+                        let num = parseInt(key.split('-')[1].substring(1));
+                        if (num > maxFarmaco) maxFarmaco = num;
+                    }
+                }
+                while (farmacosRowCount < maxFarmaco) { addFarmacoRow(); }
+
                 document.querySelectorAll('.f-input').forEach(el => {
                     if (el.type === 'checkbox') el.checked = datos[el.id] || false;
                     else if (el.type === 'radio') {
@@ -724,18 +764,41 @@
                     }
                     else el.value = datos[el.id] || '';
                 });
+
+                document.getElementById('ficha-form-title').innerHTML = `✏️ Editando: <span style='color: var(--accent);'>${ficha.nombre}</span>`;
+                document.getElementById('btn-save-ficha').textContent = "🔄 Actualizar Ficha";
+                document.getElementById('btn-new-ficha').style.display = 'inline-block';
             }
         }
 
-        function clearFicha() {
-            if(!confirm("¿Limpiar todo el formulario?")) return;
+        function clearFicha(force = false) {
+            if(!force && !confirm("¿Limpiar todo el formulario?")) return;
             document.getElementById('f-id').value = '';
+            
+            // Restablecer filas de fármacos a 1
+            document.getElementById('farmacos-tbody').innerHTML = `
+                <tr>
+                    <td><input type="text" id="f-f1-nombre" class="f-input"></td>
+                    <td><input type="text" id="f-f1-dosis" class="f-input"></td>
+                    <td><input type="text" id="f-f1-pa" class="f-input"></td>
+                    <td style="text-align:center;"><input type="checkbox" id="f-f1-des" class="f-input"></td>
+                    <td style="text-align:center;"><input type="checkbox" id="f-f1-com" class="f-input"></td>
+                    <td style="text-align:center;"><input type="checkbox" id="f-f1-cen" class="f-input"></td>
+                </tr>
+            `;
+            farmacosRowCount = 1;
+
             document.querySelectorAll('.f-input').forEach(el => {
                 if (el.type === 'checkbox' || el.type === 'radio') {
                     el.checked = false;
                 }
                 else el.value = '';
             });
+
+            document.getElementById('ficha-form-title').textContent = "📋 Nueva Ficha Dietética";
+            document.getElementById('btn-save-ficha').textContent = "💾 Guardar Ficha";
+            document.getElementById('btn-new-ficha').style.display = 'none';
+            document.getElementById('saved-fichas-select').value = '';
         }
 
         async function deleteFicha() {
@@ -743,7 +806,7 @@
             if(!id) return alert("Selecciona una ficha.");
             if(!confirm("¿Borrar permanentemente?")) return;
             const { error } = await db.from('fichas_pacientes').delete().eq('id', id);
-            if(!error) { alert("Borrada."); clearFicha(); initApp(); }
+            if(!error) { alert("Borrada."); clearFicha(true); initApp(); }
         }
 
         // --- SISTEMA DE GRÁFICAS ---
