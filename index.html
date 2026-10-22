@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor Nutricional Clínico</title>
-    <!-- Librerías de Supabase y Gráficas -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -13,15 +12,21 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--light); color: var(--dark); margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; display: grid; gap: 20px; }
         .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h1, h2, h3 { margin-top: 0; color: var(--dark); }
+        h1, h2, h3, h4 { margin-top: 0; color: var(--dark); }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
-        input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        input[type="text"], input[type="number"], input[type="email"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
+        textarea { resize: vertical; min-height: 60px; }
+        input[type="radio"], input[type="checkbox"] { margin-right: 5px; transform: scale(1.1); }
+        .radio-group, .checkbox-group { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; font-size: 13px;}
+        .radio-group label, .checkbox-group label { display: flex; align-items: center; font-weight: normal; margin: 0;}
+        
         button { background-color: var(--primary); color: var(--white); border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { filter: brightness(0.9); }
         .btn-blue { background-color: var(--blue); }
         .btn-delete { background-color: #E74C3C; }
         .btn-delete-small { background-color: #E74C3C; padding: 5px 10px; font-size: 12px; }
         .btn-toggle { background-color: #F39C12; padding: 12px; font-size: 14px;}
+        
         .table-responsive { overflow-x: auto; max-height: 600px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: white;}
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
@@ -40,10 +45,8 @@
         .header-bar { display: flex; justify-content: space-between; align-items: center; background: var(--dark); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px;}
         .header-bar h1 { margin: 0; font-size: 1.5em; color: white;}
         
-        .ratio-badge { background: #F39C12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
-        .perc-badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
-        .atwater-badge { background: #16A085; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
-        .macro-kcal-badge { background: #2980B9; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .ratio-badge, .perc-badge, .atwater-badge, .macro-kcal-badge { color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .ratio-badge { background: #F39C12; } .perc-badge { background: var(--accent); } .atwater-badge { background: #16A085; } .macro-kcal-badge { background: #2980B9; }
         .meal-perc-badge { background: #2980B9; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: normal; vertical-align: middle; }
         
         .edit-grams { width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; margin: 0; font-weight: bold; background: #fdfefe;}
@@ -56,31 +59,37 @@
         
         .manage-foods-box { background: white; padding: 20px; border-radius: 8px; border: 1px solid #D7BDE2; margin-bottom: 20px; }
 
-        /* SISTEMA DE PESTAÑAS (TABS) */
-        .tabs-container { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background: #BDC3C7; color: var(--dark); padding: 12px 25px; font-size: 16px; border-radius: 8px; flex: 1; transition: 0.3s; }
+        .tabs-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;}
+        .tab-btn { background: #BDC3C7; color: var(--dark); padding: 12px 25px; font-size: 16px; border-radius: 8px; flex: 1; min-width: 200px; transition: 0.3s; }
         .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.3); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* ESTILOS GRÁFICAS Y NUEVA SELECCIÓN DE DIETAS SIN TICKS */
         .checklist-dietas { max-height: 400px; overflow-y: auto; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: flex; flex-direction: column; gap: 10px; }
-        
         .diet-bar { display: block; text-align: center; padding: 16px; background: white; border: 2px solid #eee; border-radius: 8px; cursor: pointer; font-size: 16px; transition: 0.2s; font-weight: bold; color: #555; }
         .diet-bar:hover { border-color: var(--primary); background: #e8f8f5; color: var(--primary); }
-        
         .diet-bar-selected { display: flex; align-items: center; background: #e8f8f5; border: 2px solid #2ECC71; border-radius: 8px; transition: 0.2s; }
         .order-badge { background: #2ECC71; color: white; border-radius: 50%; min-width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin-right: 10px; }
-        
         .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 25px; margin-top: 20px; }
         .chart-box { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 4px 6px rgba(0,0,0,0.02); height: 350px; position: relative;}
         
-        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+        /* ESTILOS FICHA CLÍNICA */
+        .ficha-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .ficha-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .ficha-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+        .ficha-section { background: #fdfefe; border: 1px solid #e1e8ed; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .ficha-section h3 { border-bottom: 2px solid var(--primary); padding-bottom: 8px; color: var(--primary); margin-bottom: 15px;}
+        .form-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .form-table th, .form-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .form-table th { background-color: #f8f9fa; }
+        .form-table input[type="text"], .form-table input[type="number"] { margin-bottom: 0; border: none; background: transparent; padding: 5px; }
+        .form-table input:focus { background: white; outline: 1px solid var(--primary); }
+        
+        @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-    <!-- PANTALLA DE INICIO DE SESIÓN -->
     <div id="auth-screen">
         <div class="auth-card">
             <h2 style="font-size: 24px; margin-bottom: 25px;">🥑 Acceso Clínico</h2>
@@ -92,7 +101,6 @@
         </div>
     </div>
 
-    <!-- APLICACIÓN PRINCIPAL -->
     <div id="app-screen" class="container">
         
         <div class="header-bar">
@@ -103,17 +111,17 @@
             </div>
         </div>
 
-        <!-- MENÚ DE PESTAÑAS -->
         <div class="tabs-container">
             <button id="btn-tab-main" class="tab-btn active" onclick="switchTab('main')">📝 Gestor de Dietas</button>
             <button id="btn-tab-progress" class="tab-btn" onclick="switchTab('progress')">📈 Progreso y Gráficas</button>
+            <button id="btn-tab-patient" class="tab-btn" onclick="switchTab('patient')">📋 Ficha Dietética</button>
         </div>
 
         <!-- ========================================== -->
-        <!-- PESTAÑA 1: GESTOR DE DIETAS (ORIGINAL) -->
+        <!-- PESTAÑA 1: GESTOR DE DIETAS                -->
         <!-- ========================================== -->
         <div id="tab-main" class="tab-content active">
-            
+            <!-- (Contenido de dietas idéntico, omitido para brevedad en comentarios, completo en código real) -->
             <div class="card" style="border-left: 5px solid var(--blue);">
                 <h2>📂 Datos del Paciente y Guardado</h2>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px;">
@@ -207,41 +215,307 @@
                     </div>
                 </div>
             </details>
-
-        </div> <!-- Fin Tab Main -->
+        </div>
 
         <!-- ========================================== -->
         <!-- PESTAÑA 2: GRÁFICAS DE PROGRESO            -->
         <!-- ========================================== -->
         <div id="tab-progress" class="tab-content">
-            
             <div class="card" style="border-left: 5px solid #F39C12;">
                 <h2>📊 Analizador de Progreso y Comparativa</h2>
                 <p style="color: #666; font-size: 14px;">Haz clic directamente sobre la barra de cualquier dieta para seleccionarla. Se ordenarán y graficarán <b>en el orden exacto en el que vayas haciendo clic.</b></p>
-                
-                <div class="checklist-dietas" id="diet-checklist-container">
-                    <!-- Aquí se generan las barras de selección por JS -->
-                </div>
-
+                <div class="checklist-dietas" id="diet-checklist-container"></div>
                 <button class="btn-toggle" onclick="generateCharts()" style="margin-top: 15px; margin-bottom: 0;">📊 Generar Gráficas de Evolución</button>
             </div>
-
             <div class="charts-grid" id="charts-wrapper" style="display: none;">
                 <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-energia"></canvas></div>
-                
                 <div class="chart-box"><canvas id="chart-proteinas"></canvas></div>
                 <div class="chart-box"><canvas id="chart-proteinas-perc"></canvas></div>
-                
                 <div class="chart-box"><canvas id="chart-lipidos"></canvas></div>
                 <div class="chart-box"><canvas id="chart-lipidos-perc"></canvas></div>
-                
                 <div class="chart-box"><canvas id="chart-hidratos"></canvas></div>
                 <div class="chart-box"><canvas id="chart-hidratos-perc"></canvas></div>
-                
                 <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-fibra"></canvas></div>
             </div>
+        </div>
 
-        </div> <!-- Fin Tab Progress -->
+        <!-- ========================================== -->
+        <!-- PESTAÑA 3: FICHA DIETÉTICA                 -->
+        <!-- ========================================== -->
+        <div id="tab-patient" class="tab-content">
+            <div class="card" style="border-left: 5px solid var(--accent); margin-bottom: 20px;">
+                <h2>📋 Gestor de Fichas de Pacientes</h2>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                    <div style="flex: 2; min-width: 250px;">
+                        <label>Cargar ficha guardada:</label>
+                        <select id="saved-fichas-select"><option value="">Cargando fichas...</option></select>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="loadFicha()" style="margin-bottom: 15px;">📂 Abrir</button>
+                        <button class="btn-delete" onclick="deleteFicha()" style="margin-bottom: 15px;">🗑️ Borrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="ficha-form">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Ficha Dietética</h2>
+                    <div>
+                        <button class="btn-blue" onclick="saveFicha()">💾 Guardar Ficha</button>
+                        <button class="btn-delete" onclick="clearFicha()">Limpiar Formulario</button>
+                    </div>
+                </div>
+
+                <input type="hidden" id="f-id">
+
+                <!-- 1. DATOS ADMINISTRATIVOS -->
+                <div class="ficha-section">
+                    <h3>Datos administrativos del paciente</h3>
+                    <div class="ficha-grid-2">
+                        <div><label>Nombre:</label><input type="text" id="f-nombre" class="f-input"></div>
+                        <div><label>Apellidos:</label><input type="text" id="f-apellidos" class="f-input"></div>
+                        <div><label>Dirección:</label><input type="text" id="f-direccion" class="f-input"></div>
+                        <div><label>Código postal:</label><input type="text" id="f-cp" class="f-input"></div>
+                        <div><label>Fecha de nacimiento:</label><input type="date" id="f-fecha-nac" class="f-input"></div>
+                        <div><label>Teléfono:</label><input type="text" id="f-telefono" class="f-input"></div>
+                        <div><label>Sexo:</label><input type="text" id="f-sexo" class="f-input"></div>
+                        <div><label>Email:</label><input type="email" id="f-email" class="f-input"></div>
+                    </div>
+                </div>
+
+                <!-- 2. ANAMNESIS -->
+                <div class="ficha-section">
+                    <h3>Anamnesis</h3>
+                    <label>Motivo de la consulta:</label>
+                    <textarea id="f-motivo" class="f-input"></textarea>
+                    
+                    <div class="ficha-grid-2">
+                        <div>
+                            <label>¿Padece algún tipo de patología?</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="f-patologia" value="Si" class="f-input"> Sí</label>
+                                <label><input type="radio" name="f-patologia" value="No" class="f-input"> No</label>
+                            </div>
+                            <label>¿Cuál?</label><input type="text" id="f-patologia-cual" class="f-input">
+                        </div>
+                        <div>
+                            <label>Antecedentes médicos familiares</label>
+                            <textarea id="f-antecedentes" class="f-input"></textarea>
+                        </div>
+                        <div>
+                            <label>¿Ha acudido al médico últimamente?</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="f-medico" value="Si" class="f-input"> Sí</label>
+                                <label><input type="radio" name="f-medico" value="No" class="f-input"> No</label>
+                            </div>
+                            <label>De ser así, ¿por qué ha acudido?</label><input type="text" id="f-medico-pq" class="f-input">
+                        </div>
+                        <div>
+                            <label>¿Ha sido operado/a de algo?</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="f-operado" value="Si" class="f-input"> Sí</label>
+                                <label><input type="radio" name="f-operado" value="No" class="f-input"> No</label>
+                            </div>
+                            <label>¿De qué?</label><input type="text" id="f-operado-de" class="f-input">
+                        </div>
+                    </div>
+
+                    <label>¿Está en tratamiento farmacológico?</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="f-farmacos" value="Si" class="f-input"> Sí</label>
+                        <label><input type="radio" name="f-farmacos" value="No" class="f-input"> No</label>
+                    </div>
+                    <table class="form-table">
+                        <tr><th>Fármaco</th><th>Dosis</th><th>Principio activo</th><th>Desayuno</th><th>Comida</th><th>Cena</th></tr>
+                        <tr><td><input type="text" id="f-f1-nombre" class="f-input"></td><td><input type="text" id="f-f1-dosis" class="f-input"></td><td><input type="text" id="f-f1-pa" class="f-input"></td><td><input type="text" id="f-f1-des" class="f-input"></td><td><input type="text" id="f-f1-com" class="f-input"></td><td><input type="text" id="f-f1-cen" class="f-input"></td></tr>
+                        <tr><td><input type="text" id="f-f2-nombre" class="f-input"></td><td><input type="text" id="f-f2-dosis" class="f-input"></td><td><input type="text" id="f-f2-pa" class="f-input"></td><td><input type="text" id="f-f2-des" class="f-input"></td><td><input type="text" id="f-f2-com" class="f-input"></td><td><input type="text" id="f-f2-cen" class="f-input"></td></tr>
+                    </table>
+                </div>
+
+                <!-- 3. DATOS DE INTERÉS MUJER / NIÑOS -->
+                <div class="ficha-grid-2">
+                    <div class="ficha-section">
+                        <h3>Datos de interés en la mujer</h3>
+                        <label>¿A qué edad tuvo su primera menstruación?</label><input type="text" id="f-m-edad" class="f-input">
+                        <label>¿Tiene menstruaciones actualmente?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-actual" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-actual" value="No" class="f-input"> No</label></div>
+                        <label>¿Son regulares?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-reg" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-reg" value="No" class="f-input"> No</label></div>
+                        <label>Días de sangrado y cantidad (escasa, normal, abundante):</label><input type="text" id="f-m-sangrado" class="f-input">
+                        <label>¿Dolor, SPM, migrañas, cansancio u otros?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-sint" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-sint" value="No" class="f-input"> No</label></div>
+                        <label>¿Embarazada o posibilidad?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-emb" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-emb" value="No" class="f-input"> No</label></div>
+                        <label>¿Dando el pecho?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-pecho" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-pecho" value="No" class="f-input"> No</label></div>
+                        <label>¿Anticonceptivos/tratamiento hormonal?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-m-anti" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-m-anti" value="No" class="f-input"> No</label></div>
+                        <label>¿Perimenopausia/menopausia? ¿Desde cuándo?</label><input type="text" id="f-m-meno" class="f-input">
+                        <label>¿SOP, endometriosis, miomas, anemia, etc?</label><input type="text" id="f-m-sop" class="f-input">
+                    </div>
+                    <div class="ficha-section">
+                        <h3>Datos de interés en niños</h3>
+                        <label>¿Cambio o preocupación por peso/talla/crecimiento?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-n-cambio" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-n-cambio" value="No" class="f-input"> No</label></div>
+                        <label>¿Apetito / rechazo / selectividad de alimentos?</label>
+                        <textarea id="f-n-apetito" class="f-input"></textarea>
+                        
+                        <h3 style="margin-top:20px;">Estilo de vida</h3>
+                        <label>¿Tiene alguna alergia, intolerancia o reacción a algún alimento?</label>
+                        <textarea id="f-v-alergia" class="f-input"></textarea>
+                        <label>¿Realiza actividad física o algún deporte?</label>
+                        <div class="radio-group"><label><input type="radio" name="f-v-dep" value="Si" class="f-input"> Sí</label><label><input type="radio" name="f-v-dep" value="No" class="f-input"> No</label></div>
+                        <label>¿Cuántos días a la semana aproximadamente?</label><input type="text" id="f-v-dias" class="f-input">
+                    </div>
+                </div>
+
+                <!-- 4. ANTROPOMETRÍA -->
+                <div class="ficha-section">
+                    <h3>Datos antropométricos</h3>
+                    <div class="ficha-grid-4">
+                        <div><label>Peso actual (kg):</label><input type="number" id="f-peso" class="f-input" step="0.1" oninput="calcIMC()"></div>
+                        <div><label>Altura (cm):</label><input type="number" id="f-altura" class="f-input" step="0.1" oninput="calcIMC()"></div>
+                        <div><label>IMC:</label><input type="text" id="f-imc" class="f-input" readonly style="background:#e8f8f5; font-weight:bold;"></div>
+                        <div><label>Masa muscular (%/kg):</label><input type="text" id="f-mmusc" class="f-input"></div>
+                        <div><label>Masa grasa (%/kg):</label><input type="text" id="f-mgrasa" class="f-input"></div>
+                        <div><label>Perímetro cintura (cm):</label><input type="text" id="f-pcint" class="f-input"></div>
+                        <div><label>Perímetro muñeca (cm):</label><input type="text" id="f-pmun" class="f-input"></div>
+                        <div><label>Perímetro brazo (cm):</label><input type="text" id="f-pbrazo" class="f-input"></div>
+                        <div><label>Peso deseado:</label><input type="text" id="f-pdeseado" class="f-input"></div>
+                        <div><label>Peso anterior:</label><input type="text" id="f-pant" class="f-input"></div>
+                    </div>
+                    <label style="margin-top: 15px;">¿Cuánto tiempo llevas con tu peso actual?</label>
+                    <input type="text" id="f-tiempo-peso" class="f-input">
+                </div>
+
+                <!-- 5. EXPLORACIÓN FÍSICA -->
+                <div class="ficha-section">
+                    <h3>Exploración física</h3>
+                    <div class="ficha-grid-3">
+                        <div>
+                            <label>Pelo:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-pelo-caida" class="f-input"> Caída</label>
+                                <label><input type="checkbox" id="f-pelo-brillo" class="f-input"> Sin brillo</label>
+                                <label><input type="checkbox" id="f-pelo-queb" class="f-input"> Quebradizo</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Piel:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-piel-norm" class="f-input"> Normal</label>
+                                <label><input type="checkbox" id="f-piel-seca" class="f-input"> Seca</label>
+                                <label><input type="checkbox" id="f-piel-mseca" class="f-input"> Muy seca</label>
+                                <label><input type="checkbox" id="f-piel-grasa" class="f-input"> Grasa</label>
+                                <label><input type="checkbox" id="f-piel-mix" class="f-input"> Mixta</label>
+                                <label><input type="checkbox" id="f-piel-sen" class="f-input"> Sensible</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Uñas:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-unas-norm" class="f-input"> Normal</label>
+                                <label><input type="checkbox" id="f-unas-frag" class="f-input"> Frágiles</label>
+                                <label><input type="checkbox" id="f-unas-est" class="f-input"> Estriadas</label>
+                                <label><input type="checkbox" id="f-unas-manch" class="f-input"> Con manchas</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Dientes:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-die-norm" class="f-input"> Normal</label>
+                                <label><input type="checkbox" id="f-die-sen" class="f-input"> Sensibilidad</label>
+                                <label><input type="checkbox" id="f-die-car" class="f-input"> Caries</label>
+                                <label><input type="checkbox" id="f-die-desg" class="f-input"> Desgaste</label>
+                                <label><input type="checkbox" id="f-die-mbl" class="f-input"> Manchas blancas</label>
+                                <label><input type="checkbox" id="f-die-am" class="f-input"> Amarillentos</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Lengua:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-len-norm" class="f-input"> Normal</label>
+                                <label><input type="checkbox" id="f-len-pal" class="f-input"> Pálida</label>
+                                <label><input type="checkbox" id="f-len-roj" class="f-input"> Roja</label>
+                                <label><input type="checkbox" id="f-len-mor" class="f-input"> Morada</label>
+                                <label><input type="checkbox" id="f-len-les" class="f-input"> Lesiones</label>
+                                <label><input type="checkbox" id="f-len-rug" class="f-input"> Rugosa</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label>Cuello y Párpado:</label>
+                            <div class="checkbox-group">
+                                <label><input type="checkbox" id="f-cue-norm" class="f-input"> C: Normal</label>
+                                <label><input type="checkbox" id="f-cue-boc" class="f-input"> C: Bocio/Nódulo</label>
+                                <label><input type="checkbox" id="f-par-norm" class="f-input"> P: Normal</label>
+                                <label><input type="checkbox" id="f-par-bla" class="f-input"> P: Int. blanco</label>
+                                <label><input type="checkbox" id="f-par-ojer" class="f-input"> P: Ojeras/Bolsas</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. ANALÍTICA -->
+                <div class="ficha-section">
+                    <h3>Analítica</h3>
+                    <table class="form-table">
+                        <tr><th>Parámetro</th><th>Valores de referencia</th><th>Alterado</th><th>No alterado</th></tr>
+                        <tr><td>Glucosa</td><td><input type="text" id="f-an-gl-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-gl" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-gl" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>Hemoglobina</td><td><input type="text" id="f-an-he-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-he" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-he" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>Colesterol</td><td><input type="text" id="f-an-co-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-co" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-co" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>Triglicéridos</td><td><input type="text" id="f-an-tr-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-tr" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-tr" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>TSH</td><td><input type="text" id="f-an-ts-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-ts" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-ts" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>Vitamina B12</td><td><input type="text" id="f-an-b12-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-b12" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-b12" value="NoAlt" class="f-input"></td></tr>
+                        <tr><td>Vitamina D</td><td><input type="text" id="f-an-vitd-val" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-vitd" value="Alt" class="f-input"></td><td style="text-align:center;"><input type="radio" name="f-an-vitd" value="NoAlt" class="f-input"></td></tr>
+                    </table>
+                </div>
+
+                <!-- 7. PREGUNTAS NUTRICIÓN -->
+                <div class="ficha-section">
+                    <h3>Preguntas relacionadas con la nutrición</h3>
+                    <label>¿Cuál es tu objetivo nutricional principal?</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="f-n-obj" value="Perder peso" class="f-input"> Perder peso</label>
+                        <label><input type="radio" name="f-n-obj" value="Ganar masa" class="f-input"> Ganar masa muscular</label>
+                        <label><input type="radio" name="f-n-obj" value="Mantener" class="f-input"> Mantener peso</label>
+                        <label><input type="radio" name="f-n-obj" value="Salud" class="f-input"> Mejorar salud</label>
+                    </div>
+
+                    <div class="ficha-grid-2">
+                        <div>
+                            <label>¿Has experimentado cambios de peso recientemente?</label>
+                            <input type="text" id="f-n-cambiopeso" class="f-input" placeholder="Sí/No. ¿Cuáles?">
+                        </div>
+                        <div>
+                            <label>¿Cuántas comidas realizas al día?</label>
+                            <select id="f-n-comidas" class="f-input">
+                                <option value="">Selecciona...</option><option value="1-2">1-2</option><option value="3">3</option><option value="4">4</option><option value="5+">5 o más</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>¿Sueles desayunar?</label>
+                            <select id="f-n-desayuno" class="f-input"><option value="">Selecciona...</option><option value="Siempre">Siempre</option><option value="A veces">A veces</option><option value="Nunca">Nunca</option></select>
+                        </div>
+                        <div>
+                            <label>¿Sueles picar entre horas?</label>
+                            <input type="text" id="f-n-picar" class="f-input" placeholder="Sí/No. ¿Qué alimentos?">
+                        </div>
+                        <div>
+                            <label>¿Cuánto tiempo dedicas normalmente a comer?</label>
+                            <select id="f-n-tiempo" class="f-input"><option value="">Selecciona...</option><option value="<15">< 15 min</option><option value="15-30">15-30 min</option><option value=">30">> 30 min</option></select>
+                        </div>
+                        <div>
+                            <label>¿Cuántas horas duermes al día?</label>
+                            <select id="f-n-sueno" class="f-input"><option value="">Selecciona...</option><option value="<6">< 6 h</option><option value="6-8">6-8 h</option><option value=">8">> 8 h</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: right; margin-top: 20px;">
+                    <button class="btn-blue" onclick="saveFicha()" style="padding: 15px 30px; font-size: 16px;">💾 Guardar Ficha</button>
+                </div>
+            </div>
+        </div> <!-- Fin Tab Ficha -->
 
     </div>
 
@@ -276,8 +550,8 @@
             const password = document.getElementById('password').value;
             const msg = document.getElementById('auth-msg');
             msg.textContent = "Creando cuenta...";
-            const { data, error } = await db.auth.signUp({ email, password });
-            if (error) { msg.textContent = error.message; } 
+            const { error } = await db.auth.signUp({ email, password });
+            if (error) msg.textContent = error.message; 
             else { msg.textContent = "¡Cuenta creada! Ya puedes entrar."; msg.style.color = "green"; }
         }
 
@@ -286,7 +560,7 @@
             const password = document.getElementById('password').value;
             const msg = document.getElementById('auth-msg');
             msg.textContent = "Entrando...";
-            const { data, error } = await db.auth.signInWithPassword({ email, password });
+            const { error } = await db.auth.signInWithPassword({ email, password });
             if (error) { msg.textContent = "Correo o contraseña incorrectos."; msg.style.color = "#E74C3C"; }
         }
 
@@ -294,33 +568,23 @@
 
         const mealOrder = ['Desayuno', 'Media mañana', 'Comida', 'Media tarde', 'Cena', 'Recena'];
         let foodDatabase = [], nutrientColumns = [], savedDiets = [], currentTemplate = [], showAllMicros = false;
-        let editingFoodId = null; 
-        let chartInstances = {};
-        let selectedDietIds = [];
+        let editingFoodId = null, chartInstances = {}, selectedDietIds = [];
+        let savedFichas = []; // Almacén de fichas
 
         function switchTab(tab) {
-            document.getElementById('tab-main').classList.remove('active');
-            document.getElementById('tab-progress').classList.remove('active');
-            document.getElementById('btn-tab-main').classList.remove('active');
-            document.getElementById('btn-tab-progress').classList.remove('active');
-
-            if(tab === 'main') {
-                document.getElementById('tab-main').classList.add('active');
-                document.getElementById('btn-tab-main').classList.add('active');
-            } else {
-                document.getElementById('tab-progress').classList.add('active');
-                document.getElementById('btn-tab-progress').classList.add('active');
-                renderDietChecklist(); 
-            }
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`btn-tab-${tab}`).classList.add('active');
+            
+            if(tab === 'progress') renderDietChecklist(); 
         }
 
         async function initApp() { 
             try {
                 let { data: foodData, error: foodErr } = await db.from('alimentos').select('*').or(`user_id.is.null,user_id.eq.${currentUser.id}`);
-                if (foodErr) {
-                    const res = await db.from('alimentos').select('*');
-                    foodData = res.data;
-                }
+                if (foodErr) { const res = await db.from('alimentos').select('*'); foodData = res.data; }
 
                 if (foodData && foodData.length > 0) {
                     foodDatabase = foodData.map(item => ({ id: item.id, alimento: item.nombre, user_id: item.user_id, ...item.nutrientes }));
@@ -336,69 +600,125 @@
                     savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
                 }
 
-                updateFoodSelectOptions(); 
-                updateMyFoodsSelect(); 
-                updateDietSelectOptions();
-                restoreFormState();
-                renderTemplate();
-            } catch (err) { console.error(err); alert("Error cargando los datos."); }
+                // Cargar Fichas
+                const { data: fichasData } = await db.from('fichas_pacientes').select('*').eq('user_id', currentUser.id);
+                if (fichasData) savedFichas = fichasData;
+
+                updateFoodSelectOptions(); updateMyFoodsSelect(); updateDietSelectOptions(); updateFichasSelectOptions();
+                restoreFormState(); renderTemplate();
+            } catch (err) { console.error(err); }
         }
 
-        // --- SISTEMA VISUAL DE SELECCIÓN DE DIETAS SIN CHECKBOX ---
+        // --- SISTEMA DE FICHAS DIETÉTICAS ---
+        
+        function calcIMC() {
+            let peso = parseFloat(document.getElementById('f-peso').value);
+            let alturaCm = parseFloat(document.getElementById('f-altura').value);
+            if (peso > 0 && alturaCm > 0) {
+                let alturaM = alturaCm / 100;
+                let imc = peso / (alturaM * alturaM);
+                document.getElementById('f-imc').value = imc.toFixed(2);
+            } else {
+                document.getElementById('f-imc').value = "";
+            }
+        }
+
+        function updateFichasSelectOptions() {
+            const select = document.getElementById('saved-fichas-select');
+            select.innerHTML = savedFichas.length === 0 ? '<option value="">No tienes fichas guardadas...</option>' : '<option value="">--- Selecciona una ficha ---</option>';
+            savedFichas.forEach(f => {
+                const option = document.createElement('option');
+                option.value = f.id; option.textContent = `${f.nombre} ${JSON.parse(f.datos)['f-apellidos'] || ''}`;
+                select.appendChild(option);
+            });
+        }
+
+        async function saveFicha() {
+            const nombre = document.getElementById('f-nombre').value.trim();
+            if(!nombre) return alert("El campo Nombre es obligatorio para guardar la ficha.");
+
+            let datos = {};
+            document.querySelectorAll('.f-input').forEach(el => {
+                if (el.type === 'checkbox') datos[el.id] = el.checked;
+                else if (el.type === 'radio') { if (el.checked) datos[el.name] = el.value; }
+                else datos[el.id] = el.value;
+            });
+
+            const fichaId = document.getElementById('f-id').value;
+
+            if (fichaId) { // Update
+                const { error } = await db.from('fichas_pacientes').update({ nombre: nombre, datos: datos }).eq('id', fichaId);
+                if(error) alert(error.message); else { alert("Ficha actualizada."); initApp(); }
+            } else { // Insert
+                const { error } = await db.from('fichas_pacientes').insert([{ nombre: nombre, datos: datos, user_id: currentUser.id }]);
+                if(error) alert(error.message); else { alert("Ficha guardada."); initApp(); }
+            }
+        }
+
+        function loadFicha() {
+            const id = document.getElementById('saved-fichas-select').value;
+            if(!id) return alert("Selecciona una ficha.");
+            const ficha = savedFichas.find(f => f.id === id);
+            if(ficha) {
+                document.getElementById('f-id').value = ficha.id;
+                const datos = typeof ficha.datos === 'string' ? JSON.parse(ficha.datos) : ficha.datos;
+                
+                document.querySelectorAll('.f-input').forEach(el => {
+                    if (el.type === 'checkbox') el.checked = datos[el.id] || false;
+                    else if (el.type === 'radio') el.checked = (datos[el.name] === el.value);
+                    else el.value = datos[el.id] || '';
+                });
+            }
+        }
+
+        function clearFicha() {
+            if(!confirm("¿Limpiar todo el formulario?")) return;
+            document.getElementById('f-id').value = '';
+            document.querySelectorAll('.f-input').forEach(el => {
+                if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+                else el.value = '';
+            });
+        }
+
+        async function deleteFicha() {
+            const id = document.getElementById('saved-fichas-select').value;
+            if(!id) return alert("Selecciona una ficha.");
+            if(!confirm("¿Borrar permanentemente?")) return;
+            const { error } = await db.from('fichas_pacientes').delete().eq('id', id);
+            if(!error) { alert("Borrada."); clearFicha(); initApp(); }
+        }
+
+        // --- SISTEMA DE GRÁFICAS ---
         function renderDietChecklist() {
             const container = document.getElementById('diet-checklist-container');
             container.innerHTML = '';
-            
-            if(savedDiets.length === 0) {
-                container.innerHTML = '<p style="color: #E74C3C; font-weight: bold; margin: 0; text-align: center; padding: 20px;">No tienes dietas guardadas todavía. Guarda algunas en la pestaña principal primero.</p>';
-                return;
-            }
-
+            if(savedDiets.length === 0) { container.innerHTML = '<p style="color: #E74C3C; font-weight: bold;">No tienes dietas guardadas.</p>'; return; }
             let unselectedDiets = savedDiets.filter(d => !selectedDietIds.includes(String(d.id)));
             unselectedDiets.forEach(diet => {
-                container.innerHTML += `
-                    <div class="diet-bar" onclick="handleDietClick('${diet.id}')">
-                        ${diet.name}
-                    </div>
-                `;
+                container.innerHTML += `<div class="diet-bar" onclick="handleDietClick('${diet.id}')">${diet.name}</div>`;
             });
-
             let selectedDiets = [];
-            selectedDietIds.forEach(id => {
-                let found = savedDiets.find(d => String(d.id) === String(id));
-                if(found) selectedDiets.push(found);
-            });
-
+            selectedDietIds.forEach(id => { let found = savedDiets.find(d => String(d.id) === String(id)); if(found) selectedDiets.push(found); });
             selectedDiets.forEach((diet, index) => {
                 container.innerHTML += `
                     <div class="diet-bar-selected">
                         <div onclick="handleDietClick('${diet.id}')" style="display: flex; align-items: center; flex: 1; padding: 12px 15px; cursor: pointer;">
-                            <span class="order-badge">${index + 1}</span>
-                            <span style="flex: 1; text-align: center; font-weight: bold; color: #27AE60; font-size: 16px;">${diet.name}</span>
-                            <span style="width: 34px;"></span> 
+                            <span class="order-badge">${index + 1}</span><span style="flex: 1; text-align: center; font-weight: bold; color: #27AE60;">${diet.name}</span><span style="width: 34px;"></span> 
                         </div>
                         <div style="padding-right: 15px; display: flex; gap: 5px;">
-                            <button onclick="moveDiet(${index}, -1)" style="padding: 6px 12px; font-size: 14px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;" title="Subir">↑</button>
-                            <button onclick="moveDiet(${index}, 1)" style="padding: 6px 12px; font-size: 14px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;" title="Bajar">↓</button>
+                            <button onclick="moveDiet(${index}, -1)" style="padding: 6px 12px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;">↑</button>
+                            <button onclick="moveDiet(${index}, 1)" style="padding: 6px 12px; background: #BDC3C7; border-radius:6px; border:none; cursor:pointer;">↓</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         }
 
-        // Nueva función manejada puramente por JavaScript y clics en el DIV
         function handleDietClick(id) {
             id = String(id);
-            if(selectedDietIds.includes(id)) {
-                selectedDietIds = selectedDietIds.filter(item => item !== id);
-            } else {
-                selectedDietIds.push(id);
-            }
+            if(selectedDietIds.includes(id)) selectedDietIds = selectedDietIds.filter(item => item !== id);
+            else selectedDietIds.push(id);
             renderDietChecklist();
-            
-            if (document.getElementById('charts-wrapper').style.display !== 'none') {
-                generateCharts();
-            }
+            if (document.getElementById('charts-wrapper').style.display !== 'none') generateCharts();
         }
 
         function moveDiet(index, direction) {
@@ -411,56 +731,28 @@
         }
 
         function generateCharts() {
-            if (selectedDietIds.length === 0) {
-                alert("Haz clic en la barra de alguna dieta para generarle una gráfica.");
-                document.getElementById('charts-wrapper').style.display = 'none';
-                return;
-            }
-
+            if (selectedDietIds.length === 0) { alert("Selecciona dieta."); return; }
             let dietsToPlot = [];
-            selectedDietIds.forEach(id => {
-                const diet = savedDiets.find(d => String(d.id) === String(id));
-                if(diet) dietsToPlot.push(diet);
-            });
-
+            selectedDietIds.forEach(id => { const diet = savedDiets.find(d => String(d.id) === String(id)); if(diet) dietsToPlot.push(diet); });
             document.getElementById('charts-wrapper').style.display = 'grid';
 
             const getCol = (terms) => nutrientColumns.find(c => terms.some(t => c.toLowerCase().includes(t)));
-            let engCol = getCol(['energ', 'kcal']);
-            let protCol = getCol(['prot']);
-            let lipCol = getCol(['lípid', 'lipid', 'grasas']);
-            let carbCol = getCol(['hidrat', 'carb']);
-            let fibrCol = getCol(['fibr']);
-
-            let labels = [];
-            let dataEnergia = [], dataProteinas = [], dataLipidos = [], dataHidratos = [], dataFibra = [];
-            let dataProtPerc = [], dataLipPerc = [], dataCarbPerc = [];
+            let engCol = getCol(['energ', 'kcal']), protCol = getCol(['prot']), lipCol = getCol(['lípid', 'lipid', 'grasas']), carbCol = getCol(['hidrat', 'carb']), fibrCol = getCol(['fibr']);
+            let labels = [], dataEnergia = [], dataProteinas = [], dataLipidos = [], dataHidratos = [], dataFibra = [], dataProtPerc = [], dataLipPerc = [], dataCarbPerc = [];
 
             dietsToPlot.forEach(diet => {
                 labels.push(diet.name);
                 let totEng = 0, totProt = 0, totLip = 0, totCarb = 0, totFibr = 0;
-                
                 diet.template.forEach(item => {
-                    if(engCol) totEng += item[engCol] || 0;
-                    if(protCol) totProt += item[protCol] || 0;
-                    if(lipCol) totLip += item[lipCol] || 0;
-                    if(carbCol) totCarb += item[carbCol] || 0;
+                    if(engCol) totEng += item[engCol] || 0; if(protCol) totProt += item[protCol] || 0;
+                    if(lipCol) totLip += item[lipCol] || 0; if(carbCol) totCarb += item[carbCol] || 0;
                     if(fibrCol) totFibr += item[fibrCol] || 0;
                 });
-
                 let atwater = (totProt * 4) + (totLip * 9) + (totCarb * 4);
-                let pPerc = atwater > 0 ? ((totProt * 4) / atwater) * 100 : 0;
-                let lPerc = atwater > 0 ? ((totLip * 9) / atwater) * 100 : 0;
-                let cPerc = atwater > 0 ? ((totCarb * 4) / atwater) * 100 : 0;
-
-                dataEnergia.push(totEng.toFixed(1));
-                dataProteinas.push(totProt.toFixed(1));
-                dataLipidos.push(totLip.toFixed(1));
-                dataHidratos.push(totCarb.toFixed(1));
-                dataFibra.push(totFibr.toFixed(1));
-                dataProtPerc.push(pPerc.toFixed(1));
-                dataLipPerc.push(lPerc.toFixed(1));
-                dataCarbPerc.push(cPerc.toFixed(1));
+                dataEnergia.push(totEng.toFixed(1)); dataProteinas.push(totProt.toFixed(1)); dataLipidos.push(totLip.toFixed(1)); dataHidratos.push(totCarb.toFixed(1)); dataFibra.push(totFibr.toFixed(1));
+                dataProtPerc.push(atwater > 0 ? ((totProt * 4) / atwater * 100).toFixed(1) : 0);
+                dataLipPerc.push(atwater > 0 ? ((totLip * 9) / atwater * 100).toFixed(1) : 0);
+                dataCarbPerc.push(atwater > 0 ? ((totCarb * 4) / atwater * 100).toFixed(1) : 0);
             });
 
             buildSingleChart('chart-energia', '⚡ Energía Total (kcal)', labels, dataEnergia, '#F39C12', false);
@@ -476,270 +768,123 @@
         function buildSingleChart(canvasId, title, labels, data, color, isPercentage) {
             const ctx = document.getElementById(canvasId).getContext('2d');
             if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-
             chartInstances[canvasId] = new Chart(ctx, {
                 type: 'line', 
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: title, data: data, borderColor: color, backgroundColor: color + '33', 
-                        borderWidth: 3, pointBackgroundColor: color, pointRadius: 6, pointHoverRadius: 8, fill: true, tension: 0.3 
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false, layout: { padding: { top: 30 } },
-                    plugins: {
-                        legend: { display: false }, title: { display: true, text: title, font: { size: 16 } },
-                        datalabels: {
-                            align: 'top', anchor: 'end', color: '#333', font: { weight: 'bold', size: 13 },
-                            formatter: function(value) { return isPercentage ? value + '%' : value; }
-                        }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, max: isPercentage ? 100 : undefined, ticks: { font: { size: 12 } } },
-                        x: { ticks: { font: { size: 12, weight: 'bold' } } }
-                    }
-                }
+                data: { labels: labels, datasets: [{ label: title, data: data, borderColor: color, backgroundColor: color + '33', borderWidth: 3, pointBackgroundColor: color, pointRadius: 6, fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 30 } }, plugins: { legend: { display: false }, title: { display: true, text: title, font: { size: 16 } }, datalabels: { align: 'top', anchor: 'end', color: '#333', font: { weight: 'bold', size: 13 }, formatter: function(value) { return isPercentage ? value + '%' : value; } } }, scales: { y: { beginAtZero: true, max: isPercentage ? 100 : undefined } } }
             });
         }
 
-        // --- RESTO DE FUNCIONES DEL GESTOR (ORIGINALES) ---
+        // --- FUNCIONES RESTANTES ---
         function updateFoodSelectOptions() {
-            const select = document.getElementById('food-select');
-            select.innerHTML = '<option value="">--- Selecciona un alimento ---</option>';
-            foodDatabase.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => {
-                const option = document.createElement('option');
-                option.value = food.id; 
-                option.textContent = food.user_id ? `👤 ${food.alimento}` : food.alimento; 
-                select.appendChild(option);
-            });
+            const select = document.getElementById('food-select'); select.innerHTML = '<option value="">--- Selecciona un alimento ---</option>';
+            foodDatabase.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => { const option = document.createElement('option'); option.value = food.id; option.textContent = food.user_id ? `👤 ${food.alimento}` : food.alimento; select.appendChild(option); });
         }
-
         function updateMyFoodsSelect() {
-            const select = document.getElementById('my-foods-select');
-            select.innerHTML = '<option value="">--- Selecciona un alimento tuyo ---</option>';
+            const select = document.getElementById('my-foods-select'); select.innerHTML = '<option value="">--- Selecciona un alimento tuyo ---</option>';
             const myFoods = foodDatabase.filter(f => f.user_id === currentUser.id);
-            if (myFoods.length === 0) { select.innerHTML = '<option value="">No has creado ningún alimento todavía</option>'; return; }
-            myFoods.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => {
-                const option = document.createElement('option');
-                option.value = food.id; option.textContent = food.alimento; select.appendChild(option);
-            });
+            if (myFoods.length === 0) { select.innerHTML = '<option value="">No has creado ningún alimento</option>'; return; }
+            myFoods.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => { const option = document.createElement('option'); option.value = food.id; option.textContent = food.alimento; select.appendChild(option); });
         }
-
         function buildManualForm() {
-            const container = document.getElementById('manual-inputs');
-            container.innerHTML = '';
-            nutrientColumns.forEach((col, index) => {
-                container.innerHTML += `<div><label title="${col}">${col.length > 15 ? col.substring(0,12)+'...' : col}:</label><input type="number" step="any" id="man-nut-${index}" placeholder="0" oninput="saveManualFormState()"></div>`;
-            });
+            const container = document.getElementById('manual-inputs'); container.innerHTML = '';
+            nutrientColumns.forEach((col, index) => { container.innerHTML += `<div><label title="${col}">${col.length > 15 ? col.substring(0,12)+'...' : col}:</label><input type="number" step="any" id="man-nut-${index}" placeholder="0" oninput="saveManualFormState()"></div>`; });
             restoreManualFormState();
         }
-
         function saveManualFormState() {
             let state = { name: document.getElementById('man-name').value, editingId: editingFoodId, nutrients: {} };
-            nutrientColumns.forEach((col, index) => {
-                const input = document.getElementById(`man-nut-${index}`);
-                if (input) state.nutrients[index] = input.value;
-            });
+            nutrientColumns.forEach((col, index) => { const input = document.getElementById(`man-nut-${index}`); if (input) state.nutrients[index] = input.value; });
             localStorage.setItem('temp_manual_food', JSON.stringify(state));
         }
-
         function restoreManualFormState() {
             const saved = localStorage.getItem('temp_manual_food');
             if (saved) {
                 try {
                     const state = JSON.parse(saved);
                     if (state.name) { document.getElementById('man-name').value = state.name; document.getElementById('manual-food-details').open = true; }
-                    if (state.editingId) {
-                        editingFoodId = state.editingId;
-                        document.getElementById('manual-form-title').innerHTML = "✏️ Editando (Borrador Recuperado)";
-                        document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento";
-                        document.getElementById('btn-cancel-manual').style.display = 'block';
-                    }
-                    nutrientColumns.forEach((col, index) => {
-                        const input = document.getElementById(`man-nut-${index}`);
-                        if (input && state.nutrients && state.nutrients[index] !== undefined) input.value = state.nutrients[index];
-                    });
+                    if (state.editingId) { editingFoodId = state.editingId; document.getElementById('manual-form-title').innerHTML = "✏️ Editando (Borrador Recuperado)"; document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento"; document.getElementById('btn-cancel-manual').style.display = 'block'; }
+                    nutrientColumns.forEach((col, index) => { const input = document.getElementById(`man-nut-${index}`); if (input && state.nutrients && state.nutrients[index] !== undefined) input.value = state.nutrients[index]; });
                 } catch(e) {}
             }
         }
-
         function clearManualFormState() { localStorage.removeItem('temp_manual_food'); }
-
         async function deleteMyFood() {
-            const foodId = document.getElementById('my-foods-select').value;
-            if (!foodId) return alert("Selecciona uno de tus alimentos de la lista para borrarlo.");
-            if (!confirm("¿Estás seguro de que quieres borrar este alimento de tu catálogo?")) return;
+            const foodId = document.getElementById('my-foods-select').value; if (!foodId) return alert("Selecciona alimento.");
+            if (!confirm("¿Borrar?")) return;
             const { error } = await db.from('alimentos').delete().eq('id', foodId);
-            if (error) alert("Error al borrar: " + error.message);
-            else { alert("Alimento eliminado correctamente."); cancelManualEdit(); initApp(); }
+            if (!error) { alert("Eliminado."); cancelManualEdit(); initApp(); }
         }
-
         function loadMyFoodForEdit() {
-            const foodId = document.getElementById('my-foods-select').value;
-            if (!foodId) return alert("Selecciona uno de tus alimentos de la lista para modificarlo.");
-            const food = foodDatabase.find(f => String(f.id) === String(foodId));
-            if (!food) return;
-
-            editingFoodId = food.id;
-            document.getElementById('man-name').value = food.alimento;
-            document.getElementById('manual-form-title').innerHTML = "✏️ Editando: <span style='color: var(--accent);'>" + food.alimento + "</span>";
-            document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento";
-            document.getElementById('btn-cancel-manual').style.display = 'block';
-            
-            nutrientColumns.forEach((col, index) => {
-                const input = document.getElementById(`man-nut-${index}`);
-                if (input) input.value = food[col] !== undefined ? food[col] : 0;
-            });
+            const foodId = document.getElementById('my-foods-select').value; if (!foodId) return;
+            const food = foodDatabase.find(f => String(f.id) === String(foodId)); if (!food) return;
+            editingFoodId = food.id; document.getElementById('man-name').value = food.alimento; document.getElementById('manual-form-title').innerHTML = "✏️ Editando"; document.getElementById('btn-save-manual').textContent = "🔄 Actualizar Alimento"; document.getElementById('btn-cancel-manual').style.display = 'block';
+            nutrientColumns.forEach((col, index) => { const input = document.getElementById(`man-nut-${index}`); if (input) input.value = food[col] !== undefined ? food[col] : 0; });
             saveManualFormState();
         }
-
         function cancelManualEdit() {
-            editingFoodId = null;
-            document.getElementById('man-name').value = '';
-            document.getElementById('manual-form-title').textContent = "📝 Crear Nuevo Alimento";
-            document.getElementById('btn-save-manual').textContent = "💾 Guardar en mi catálogo personal";
-            document.getElementById('btn-cancel-manual').style.display = 'none';
-            document.getElementById('my-foods-select').value = '';
-            nutrientColumns.forEach((col, index) => {
-                const input = document.getElementById(`man-nut-${index}`);
-                if (input) input.value = '';
-            });
-            clearManualFormState();
+            editingFoodId = null; document.getElementById('man-name').value = ''; document.getElementById('manual-form-title').textContent = "📝 Crear Nuevo Alimento"; document.getElementById('btn-save-manual').textContent = "💾 Guardar en mi catálogo personal"; document.getElementById('btn-cancel-manual').style.display = 'none'; document.getElementById('my-foods-select').value = '';
+            nutrientColumns.forEach((col, index) => { const input = document.getElementById(`man-nut-${index}`); if (input) input.value = ''; }); clearManualFormState();
         }
-
         async function saveManualFood() {
-            const name = document.getElementById('man-name').value.trim();
-            if (!name) return alert("Ponle un nombre al alimento.");
-            
-            let nutrientesObj = {};
-            nutrientColumns.forEach((col, index) => {
-                const input = document.getElementById(`man-nut-${index}`);
-                let rawVal = input ? input.value.replace(',', '.') : "0";
-                nutrientesObj[col] = parseFloat(rawVal) || 0;
-            });
-            
+            const name = document.getElementById('man-name').value.trim(); if (!name) return alert("Nombre obligatorio.");
+            let nutrientesObj = {}; nutrientColumns.forEach((col, index) => { const input = document.getElementById(`man-nut-${index}`); nutrientesObj[col] = parseFloat(input ? input.value.replace(',', '.') : "0") || 0; });
             if (editingFoodId) {
                 const { error } = await db.from('alimentos').update({ nombre: name, nutrientes: nutrientesObj }).eq('id', editingFoodId);
-                if (error) alert("Error al actualizar: " + error.message);
-                else { alert(`¡"${name}" actualizado correctamente!`); clearManualFormState(); cancelManualEdit(); initApp(); }
+                if (!error) { alert("Actualizado!"); clearManualFormState(); cancelManualEdit(); initApp(); }
             } else {
                 const { error } = await db.from('alimentos').insert([{ nombre: name, nutrientes: nutrientesObj, user_id: currentUser.id }]);
-                if (error) alert("Error al guardar: " + error.message);
-                else { alert(`¡"${name}" guardado correctamente en tu catálogo personal!`); clearManualFormState(); cancelManualEdit(); initApp(); }
+                if (!error) { alert("Guardado!"); clearManualFormState(); cancelManualEdit(); initApp(); }
             }
         }
-
         function updateDietSelectOptions() {
-            const select = document.getElementById('saved-diets-select');
-            select.innerHTML = savedDiets.length === 0 ? '<option value="">No tienes dietas guardadas...</option>' : '<option value="">--- Selecciona una dieta ---</option>';
-            [...savedDiets].reverse().forEach(diet => {
-                const option = document.createElement('option');
-                option.value = diet.id; option.textContent = diet.name; select.appendChild(option);
-            });
+            const select = document.getElementById('saved-diets-select'); select.innerHTML = savedDiets.length === 0 ? '<option value="">No tienes dietas guardadas...</option>' : '<option value="">--- Selecciona una dieta ---</option>';
+            [...savedDiets].forEach(diet => { const option = document.createElement('option'); option.value = diet.id; option.textContent = diet.name; select.appendChild(option); });
         }
-
         function saveFormState() {
-            const state = {
-                meal: document.getElementById('meal-select').value,
-                food: document.getElementById('food-select').value,
-                grams: document.getElementById('grams-input').value,
-                weight: document.getElementById('patient-weight').value
-            };
+            const state = { meal: document.getElementById('meal-select').value, food: document.getElementById('food-select').value, grams: document.getElementById('grams-input').value, weight: document.getElementById('patient-weight').value };
             localStorage.setItem('temp_form_state', JSON.stringify(state));
         }
-
         function restoreFormState() {
             const saved = localStorage.getItem('temp_form_state');
-            if (saved) {
-                try {
-                    const state = JSON.parse(saved);
-                    if (state.meal) document.getElementById('meal-select').value = state.meal;
-                    if (state.food) document.getElementById('food-select').value = state.food;
-                    if (state.grams) document.getElementById('grams-input').value = state.grams;
-                    if (state.weight) document.getElementById('patient-weight').value = state.weight;
-                } catch(e) {}
-            }
+            if (saved) { try { const state = JSON.parse(saved); if (state.meal) document.getElementById('meal-select').value = state.meal; if (state.food) document.getElementById('food-select').value = state.food; if (state.grams) document.getElementById('grams-input').value = state.grams; if (state.weight) document.getElementById('patient-weight').value = state.weight; } catch(e) {} }
         }
-
         async function saveDiet() {
-            if (currentTemplate.length === 0) return alert("La plantilla está vacía.");
-            const dietName = document.getElementById('diet-name-input').value.trim();
-            const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
-            if (!dietName) return alert("Ponle nombre a la dieta.");
-
-            const { error } = await db.from('dietas').insert([{
-                nombre: dietName, peso: patientWeight, plantilla: currentTemplate, user_id: currentUser.id
-            }]);
-
-            if (error) alert("Error: " + error.message);
-            else { alert(`Dieta guardada.`); document.getElementById('diet-name-input').value = ''; initApp(); }
+            if (currentTemplate.length === 0) return alert("Plantilla vacía.");
+            const dietName = document.getElementById('diet-name-input').value.trim(); const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
+            if (!dietName) return alert("Ponle nombre.");
+            const { error } = await db.from('dietas').insert([{ nombre: dietName, peso: patientWeight, plantilla: currentTemplate, user_id: currentUser.id }]);
+            if (!error) { alert("Dieta guardada."); document.getElementById('diet-name-input').value = ''; initApp(); }
         }
-
         function loadDiet() {
-            const selectVal = document.getElementById('saved-diets-select').value;
-            if (!selectVal) return alert("Selecciona una dieta.");
-            if (currentTemplate.length > 0 && !confirm("¿Sustituir la plantilla actual?")) return;
+            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return;
+            if (currentTemplate.length > 0 && !confirm("¿Sustituir plantilla?")) return;
             const diet = savedDiets.find(d => String(d.id) === String(selectVal));
-            if (diet) { 
-                currentTemplate = JSON.parse(JSON.stringify(diet.template)); 
-                document.getElementById('diet-name-input').value = diet.name;
-                document.getElementById('patient-weight').value = diet.weight || '';
-                saveFormState();
-                renderTemplate(); 
-            }
+            if (diet) { currentTemplate = JSON.parse(JSON.stringify(diet.template)); document.getElementById('diet-name-input').value = diet.name; document.getElementById('patient-weight').value = diet.weight || ''; saveFormState(); renderTemplate(); }
         }
-
         async function deleteDiet() {
-            const selectVal = document.getElementById('saved-diets-select').value;
-            if (!selectVal) return;
-            if (!confirm("¿Borrar esta dieta permanentemente?")) return;
-            
-            // Si la borramos, la sacamos también de la lista de gráficas
+            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return;
+            if (!confirm("¿Borrar?")) return;
             selectedDietIds = selectedDietIds.filter(id => id !== selectVal);
-            
-            const { error } = await db.from('dietas').delete().eq('id', selectVal);
-            if (!error) { alert("Borrada."); initApp(); }
+            const { error } = await db.from('dietas').delete().eq('id', selectVal); if (!error) initApp();
         }
-
         function addToTemplate() {
-            const selectVal = document.getElementById('food-select').value;
-            const grams = parseFloat(document.getElementById('grams-input').value);
-            const meal = document.getElementById('meal-select').value;
-            if(!selectVal || !grams || grams <= 0) return alert("Completa los datos del alimento.");
-            
-            const food = foodDatabase.find(f => String(f.id) === String(selectVal));
-            const m = grams / 100;
+            const selectVal = document.getElementById('food-select').value; const grams = parseFloat(document.getElementById('grams-input').value); const meal = document.getElementById('meal-select').value;
+            if(!selectVal || !grams || grams <= 0) return alert("Completa datos.");
+            const food = foodDatabase.find(f => String(f.id) === String(selectVal)); const m = grams / 100;
             let item = { id: Date.now(), meal: meal, foodId: food.id, name: food.alimento, grams: grams };
-            nutrientColumns.forEach(col => { item[col] = (food[col] * m); });
-            currentTemplate.push(item);
-            
-            document.getElementById('food-select').value = "";
-            document.getElementById('grams-input').value = "";
-            saveFormState();
-            
-            renderTemplate();
+            nutrientColumns.forEach(col => { item[col] = (food[col] * m); }); currentTemplate.push(item);
+            document.getElementById('food-select').value = ""; document.getElementById('grams-input').value = ""; saveFormState(); renderTemplate();
         }
-        
         function updateItemGrams(id, newGrams) {
-            newGrams = parseFloat(newGrams);
-            if (!newGrams || newGrams <= 0) return;
-            
+            newGrams = parseFloat(newGrams); if (!newGrams || newGrams <= 0) return;
             let item = currentTemplate.find(i => i.id === id);
             if (item) {
                 let originalFood = foodDatabase.find(f => String(f.id) === String(item.foodId));
-                if (originalFood) {
-                    let m = newGrams / 100;
-                    nutrientColumns.forEach(col => { item[col] = (originalFood[col] * m); });
-                } else {
-                    let ratio = newGrams / item.grams;
-                    nutrientColumns.forEach(col => { item[col] = item[col] * ratio; });
-                }
-                item.grams = newGrams;
-                renderTemplate();
+                if (originalFood) { let m = newGrams / 100; nutrientColumns.forEach(col => { item[col] = (originalFood[col] * m); }); } 
+                else { let ratio = newGrams / item.grams; nutrientColumns.forEach(col => { item[col] = item[col] * ratio; }); }
+                item.grams = newGrams; renderTemplate();
             }
         }
-
         function removeFromTemplate(id) { currentTemplate = currentTemplate.filter(item => item.id !== id); renderTemplate(); }
         function clearTemplate() { if (currentTemplate.length > 0 && confirm("¿Limpiar todo?")) { currentTemplate = []; renderTemplate(); } }
         function toggleView() { showAllMicros = !showAllMicros; document.getElementById('toggle-view-btn').innerHTML = showAllMicros ? "👁️ Ocultar micronutrientes" : "👁️ Ver todos los micronutrientes"; renderTemplate(); }
@@ -748,113 +893,43 @@
             const basicCols = ['Energía', 'Proteína total', 'Proteínas', 'Lípidos totales', 'Lípidos', 'Hidratos de Carbono', 'Hidratos', 'Fibra'];
             let visibleCols = nutrientColumns.filter(c => basicCols.includes(c));
             if(visibleCols.length === 0) visibleCols = nutrientColumns.slice(0,5);
-            
             const colsToRender = showAllMicros ? nutrientColumns : visibleCols;
             if (colsToRender.length === 0) return;
-            
             const getCol = (terms) => colsToRender.find(c => terms.some(t => c.toLowerCase().includes(t)));
-            let protCol = getCol(['prot']);
-            let lipCol = getCol(['lípid', 'lipid', 'grasas']);
-            let carbCol = getCol(['hidrat', 'carb']);
-
+            let protCol = getCol(['prot']), lipCol = getCol(['lípid', 'lipid', 'grasas']), carbCol = getCol(['hidrat', 'carb']), engCol = getCol(['energ', 'kcal']);
             const patientWeight = parseFloat(document.getElementById('patient-weight').value);
-
-            let totalAtwater = 0;
-            let dailyTotals = {}; 
-            colsToRender.forEach(col => dailyTotals[col] = 0);
-
-            currentTemplate.forEach(item => {
-                colsToRender.forEach(col => { dailyTotals[col] += item[col]; });
-            });
-
-            if (protCol && lipCol && carbCol) {
-                let p = dailyTotals[protCol] || 0;
-                let l = dailyTotals[lipCol] || 0;
-                let c = dailyTotals[carbCol] || 0;
-                totalAtwater = (p * 4) + (l * 9) + (c * 4);
-            }
-
-            const thead = document.getElementById('template-head');
-            let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`;
-            colsToRender.forEach(col => headHtml += `<th>${col}</th>`);
-            thead.innerHTML = headHtml + `<th>X</th></tr>`;
-
-            const tbody = document.getElementById('template-body'); 
-            tbody.innerHTML = '';
-
+            let totalAtwater = 0; let dailyTotals = {}; colsToRender.forEach(col => dailyTotals[col] = 0);
+            currentTemplate.forEach(item => { colsToRender.forEach(col => { dailyTotals[col] += item[col]; }); });
+            if (protCol && lipCol && carbCol) { totalAtwater = ((dailyTotals[protCol]||0) * 4) + ((dailyTotals[lipCol]||0) * 9) + ((dailyTotals[carbCol]||0) * 4); }
+            const thead = document.getElementById('template-head'); let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`; colsToRender.forEach(col => headHtml += `<th>${col}</th>`); thead.innerHTML = headHtml + `<th>X</th></tr>`;
+            const tbody = document.getElementById('template-body'); tbody.innerHTML = '';
             mealOrder.forEach(meal => {
                 const items = currentTemplate.filter(i => i.meal === meal);
                 if(items.length > 0) {
-                    let mealTotals = {}; 
-                    colsToRender.forEach(col => mealTotals[col] = 0);
-                    
-                    items.forEach(item => {
-                        colsToRender.forEach(col => { mealTotals[col] += item[col]; });
-                    });
-
-                    let mealAtwater = 0;
-                    if (protCol && lipCol && carbCol) {
-                        let mp = mealTotals[protCol] || 0;
-                        let ml = mealTotals[lipCol] || 0;
-                        let mc = mealTotals[carbCol] || 0;
-                        mealAtwater = (mp * 4) + (ml * 9) + (mc * 4);
-                    }
-
-                    let mealPercentageText = "";
-                    if (totalAtwater > 0) {
-                        let percMeal = (mealAtwater / totalAtwater) * 100;
-                        mealPercentageText = `<span class="meal-perc-badge">${percMeal.toFixed(1)}% del día</span>`;
-                    }
-
+                    let mealTotals = {}; colsToRender.forEach(col => mealTotals[col] = 0);
+                    items.forEach(item => { colsToRender.forEach(col => { mealTotals[col] += item[col]; }); });
+                    let mealAtwater = 0; if (protCol && lipCol && carbCol) { mealAtwater = ((mealTotals[protCol]||0) * 4) + ((mealTotals[lipCol]||0) * 9) + ((mealTotals[carbCol]||0) * 4); }
+                    let mealPercentageText = ""; if (totalAtwater > 0) { mealPercentageText = `<span class="meal-perc-badge">${((mealAtwater / totalAtwater) * 100).toFixed(1)}% del día</span>`; }
                     tbody.innerHTML += `<tr class="meal-header"><td colspan="${colsToRender.length + 3}">${meal} ${mealPercentageText}</td></tr>`;
-                    
                     items.forEach(item => {
-                        let rowHtml = `<tr><td class="sticky-col">${item.name}</td>
-                        <td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
-                        
+                        let rowHtml = `<tr><td class="sticky-col">${item.name}</td><td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
                         colsToRender.forEach(col => { rowHtml += `<td>${item[col].toFixed(1)}</td>`; });
                         tbody.innerHTML += rowHtml + `<td><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
                     });
-
-                    let subHtml = `<tr class="subtotals"><td class="sticky-col" style="text-align:right">Subtotal:`;
-                    if (mealAtwater > 0) {
-                        subHtml += `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>`;
-                    }
-                    subHtml += `</td><td>-</td>`;
-                    
-                    colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`);
-                    tbody.innerHTML += subHtml + `<td></td></tr>`;
+                    let subHtml = `<tr class="subtotals"><td class="sticky-col" style="text-align:right">Subtotal:` + (mealAtwater > 0 ? `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>` : '') + `</td><td>-</td>`;
+                    colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`); tbody.innerHTML += subHtml + `<td></td></tr>`;
                 }
             });
-
             const tfoot = document.getElementById('template-foot');
-            let footHtml = `<tr class="totals"><td class="sticky-col">TOTAL DÍA`;
-            if (totalAtwater > 0) {
-                footHtml += `<br><span class="atwater-badge">${totalAtwater.toFixed(1)} kcal (Atwater)</span>`;
-            }
-            footHtml += `</td><td>-</td>`;
-
+            let footHtml = `<tr class="totals"><td class="sticky-col">TOTAL DÍA` + (totalAtwater > 0 ? `<br><span class="atwater-badge">${totalAtwater.toFixed(1)} kcal (Atwater)</span>` : '') + `</td><td>-</td>`;
             colsToRender.forEach(col => {
                 let cellHtml = dailyTotals[col].toFixed(1);
-
-                if (col === protCol) {
-                    let kcals = dailyTotals[col] * 4;
+                if (col === protCol || col === lipCol || col === carbCol) {
+                    let factor = col === lipCol ? 9 : 4; let kcals = dailyTotals[col] * factor;
                     cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
-                    if (patientWeight > 0 && dailyTotals[col] > 0) { const ratio = (dailyTotals[col] / patientWeight).toFixed(2); cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`; }
-                } 
-                else if (col === lipCol) {
-                    let kcals = dailyTotals[col] * 9;
-                    cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
-                } 
-                else if (col === carbCol) {
-                    let kcals = dailyTotals[col] * 4;
-                    cellHtml += `<br><span class="macro-kcal-badge">${kcals.toFixed(1)} kcal</span>`;
-                    if (totalAtwater > 0) { let perc = (kcals / totalAtwater) * 100; cellHtml += `<br><span class="perc-badge">${perc.toFixed(1)}% kcal</span>`; }
-                    if (patientWeight > 0 && dailyTotals[col] > 0) { const ratio = (dailyTotals[col] / patientWeight).toFixed(2); cellHtml += `<br><span class="ratio-badge">${ratio} g/kg</span>`; }
+                    if (totalAtwater > 0) { cellHtml += `<br><span class="perc-badge">${((kcals / totalAtwater) * 100).toFixed(1)}% kcal</span>`; }
+                    if ((col === protCol || col === carbCol) && patientWeight > 0 && dailyTotals[col] > 0) { cellHtml += `<br><span class="ratio-badge">${(dailyTotals[col] / patientWeight).toFixed(2)} g/kg</span>`; }
                 }
-
                 footHtml += `<td>${cellHtml}</td>`;
             });
             tfoot.innerHTML = footHtml + `<td></td></tr>`;
