@@ -45,8 +45,10 @@
         .header-bar { display: flex; justify-content: space-between; align-items: center; background: var(--dark); color: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px;}
         .header-bar h1 { margin: 0; font-size: 1.5em; color: white;}
         
-        .ratio-badge, .perc-badge, .atwater-badge, .macro-kcal-badge { color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
-        .ratio-badge { background: #F39C12; } .perc-badge { background: var(--accent); } .atwater-badge { background: #16A085; } .macro-kcal-badge { background: #2980B9; }
+        .ratio-badge { background: #F39C12; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .perc-badge { background: var(--accent); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .atwater-badge { background: #16A085; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
+        .macro-kcal-badge { background: #2980B9; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; display: inline-block; }
         .meal-perc-badge { background: #2980B9; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 10px; font-weight: normal; vertical-align: middle; }
         
         .edit-grams { width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; margin: 0; font-weight: bold; background: #fdfefe;}
@@ -81,19 +83,20 @@
         .ficha-section h3 { border-bottom: 2px solid var(--primary); padding-bottom: 8px; color: var(--primary); margin-bottom: 15px;}
         .form-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .form-table th, .form-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .form-table th { background-color: #f8f9fa; color: var(--dark); font-weight: bold; } /* Corrección color de texto de cabeceras en ficha */
+        .form-table th { background-color: #f8f9fa; color: var(--dark) !important; font-weight: bold; }
         .form-table input[type="text"], .form-table input[type="number"] { margin-bottom: 0; border: none; background: transparent; padding: 5px; }
         .form-table input:focus { background: white; outline: 1px solid var(--primary); }
         
         .ref-table { flex: 1; min-width: 140px; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .ref-table th, .ref-table td { border: 1px solid #e1e8ed; padding: 6px 8px; text-align: left; background: white; color: var(--dark); font-weight: normal;}
-        .ref-table th { background-color: #f0f3f4; font-weight: bold; text-align: center; }
+        .ref-table th { background-color: #f0f3f4; color: var(--dark) !important; font-weight: bold; text-align: center; }
         
         @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
+    <!-- PANTALLA DE INICIO DE SESIÓN -->
     <div id="auth-screen">
         <div class="auth-card">
             <h2 style="font-size: 24px; margin-bottom: 25px;">🥑 Acceso Clínico</h2>
@@ -105,6 +108,7 @@
         </div>
     </div>
 
+    <!-- APLICACIÓN PRINCIPAL -->
     <div id="app-screen" class="container">
         
         <div class="header-bar">
@@ -564,16 +568,17 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
-        // ACTIVAR DESELECCIÓN DE RADIO BUTTONS AL VOLVER A CLICKAR
-        document.addEventListener('click', function(e) {
-            if(e.target.type === 'radio') {
-                if(e.target.dataset.waschecked === "true") {
-                    e.target.checked = false;
-                    e.target.dataset.waschecked = "false";
-                } else {
-                    document.querySelectorAll(`input[name="${e.target.name}"]`).forEach(r => r.dataset.waschecked = "false");
-                    e.target.dataset.waschecked = "true";
-                }
+        // Lógica mejorada para deseleccionar Radio Buttons en toda la app
+        let lastRadioClicked = null;
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.type === 'radio') {
+                lastRadioClicked = e.target.checked ? e.target : null;
+            }
+        });
+        document.addEventListener('click', (e) => {
+            if (e.target.type === 'radio' && lastRadioClicked === e.target) {
+                e.target.checked = false;
+                lastRadioClicked = null;
             }
         });
 
@@ -646,6 +651,7 @@
                     savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
                 }
 
+                // Cargar Fichas
                 const { data: fichasData } = await db.from('fichas_pacientes').select('*').eq('user_id', currentUser.id);
                 if (fichasData) savedFichas = fichasData;
 
@@ -715,7 +721,6 @@
                     if (el.type === 'checkbox') el.checked = datos[el.id] || false;
                     else if (el.type === 'radio') {
                         el.checked = (datos[el.name] === el.value);
-                        el.dataset.waschecked = el.checked ? "true" : "false"; // Activar memoria del radio
                     }
                     else el.value = datos[el.id] || '';
                 });
@@ -728,7 +733,6 @@
             document.querySelectorAll('.f-input').forEach(el => {
                 if (el.type === 'checkbox' || el.type === 'radio') {
                     el.checked = false;
-                    if(el.type === 'radio') el.dataset.waschecked = "false";
                 }
                 else el.value = '';
             });
