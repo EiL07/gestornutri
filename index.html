@@ -295,15 +295,44 @@
                     <label>Motivo de la consulta:</label>
                     <textarea id="f-motivo" class="f-input"></textarea>
                     
-                    <div class="ficha-grid-2">
-                        <div>
-                            <label>¿Padece algún tipo de patología?</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="f-patologia" value="Si" class="f-input"> Sí</label>
-                                <label><input type="radio" name="f-patologia" value="No" class="f-input"> No</label>
+                    <div style="margin-bottom: 20px;">
+                        <label>Patologías que padece:</label>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; background: #fdfefe; padding: 15px; border-radius: 8px; border: 1px solid #e1e8ed;">
+                            <label><input type="checkbox" id="f-pat-diab" class="f-input"> Diabetes</label>
+                            <label><input type="checkbox" id="f-pat-ren" class="f-input"> Patologías renales</label>
+                            <label><input type="checkbox" id="f-pat-ano" class="f-input"> Anorexia</label>
+                            
+                            <div style="display: flex; flex-direction: column;">
+                                <label><input type="checkbox" id="f-pat-ane" class="f-input" onchange="document.getElementById('f-pat-ane-tipo').style.display = this.checked ? 'block' : 'none'"> Anemias</label>
+                                <select id="f-pat-ane-tipo" class="f-input" style="display: none; margin-top: 5px; margin-bottom: 0;">
+                                    <option value="">Selecciona tipo...</option>
+                                    <option value="Ferropénica">Ferropénica</option>
+                                    <option value="Megaloblástica">Megaloblástica</option>
+                                    <option value="Perniciosa">Perniciosa</option>
+                                </select>
                             </div>
-                            <label>¿Cuál?</label><input type="text" id="f-patologia-cual" class="f-input">
+                            
+                            <label><input type="checkbox" id="f-pat-col" class="f-input"> Hipercolesterolemia e hipertrigliceridemia</label>
+                            
+                            <div style="display: flex; flex-direction: column;">
+                                <label><input type="checkbox" id="f-pat-alerg" class="f-input" onchange="document.getElementById('f-pat-alerg-texto').style.display = this.checked ? 'block' : 'none'"> Alergias e intolerancias alimentarias</label>
+                                <input type="text" id="f-pat-alerg-texto" class="f-input" style="display: none; margin-top: 5px; margin-bottom: 0;" placeholder="¿Cuáles?">
+                            </div>
+                            
+                            <label><input type="checkbox" id="f-pat-hip" class="f-input"> Hipertensión</label>
+                            
+                            <div style="display: flex; flex-direction: column;">
+                                <label><input type="checkbox" id="f-pat-card" class="f-input" onchange="document.getElementById('f-pat-card-texto').style.display = this.checked ? 'block' : 'none'"> Enfermedades cardiovasculares</label>
+                                <input type="text" id="f-pat-card-texto" class="f-input" style="display: none; margin-top: 5px; margin-bottom: 0;" placeholder="¿Cuáles?">
+                            </div>
+                            
+                            <label><input type="checkbox" id="f-pat-gota" class="f-input"> Gota</label>
+                            <label><input type="checkbox" id="f-pat-metab" class="f-input"> Síndrome metabólico</label>
+                            <label><input type="checkbox" id="f-pat-ulcera" class="f-input"> Úlceras gastrointestinales</label>
                         </div>
+                    </div>
+
+                    <div class="ficha-grid-2">
                         <div>
                             <label>Antecedentes médicos familiares</label>
                             <textarea id="f-antecedentes" class="f-input"></textarea>
@@ -795,6 +824,12 @@
                     }
                     else el.value = datos[el.id] || '';
                 });
+                
+                // Disparar eventos para mostrar casillas ocultas de patologías si procede
+                ['f-pat-ane', 'f-pat-alerg', 'f-pat-card'].forEach(id => {
+                    let el = document.getElementById(id);
+                    if(el) el.dispatchEvent(new Event('change'));
+                });
 
                 document.getElementById('ficha-form-title').innerHTML = `✏️ Editando: <span style='color: var(--accent);'>${ficha.nombre}</span>`;
                 document.getElementById('btn-save-ficha').textContent = "🔄 Actualizar Ficha";
@@ -825,6 +860,12 @@
                     el.checked = false;
                 }
                 else el.value = '';
+            });
+            
+            // Ocultar de nuevo los campos condicionales
+            ['f-pat-ane', 'f-pat-alerg', 'f-pat-card'].forEach(id => {
+                let el = document.getElementById(id);
+                if(el) el.dispatchEvent(new Event('change'));
             });
 
             document.getElementById('ficha-form-title').textContent = "📋 Nueva Ficha Dietética";
