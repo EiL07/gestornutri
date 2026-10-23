@@ -129,30 +129,35 @@
         <div id="tab-main" class="tab-content active">
             <div class="card" style="border-left: 5px solid var(--blue);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 id="diet-form-title">📂 Datos de la Dieta</h2>
+                    <h2 id="diet-form-title" style="margin: 0;">📂 Datos de la Dieta</h2>
                     <div style="display: flex; gap: 10px;">
                         <button class="btn-blue" id="btn-save-diet" onclick="saveDiet()">☁️ Guardar Dieta</button>
-                        <button class="btn-delete" id="btn-new-diet" onclick="clearDietForm()" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
+                        <button class="btn-delete" id="btn-new-diet" onclick="clearDietForm(true)" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
                     </div>
                 </div>
                 
                 <input type="hidden" id="d-id">
 
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 15px;">
                     <div style="flex: 2; min-width: 250px;">
                         <label>Nombre del paciente / Dieta:</label>
                         <input type="text" id="diet-name-input" placeholder="Ej. Menú paciente Carlos - Semana 1">
                     </div>
+                    
                     <div style="flex: 1; min-width: 150px;">
                         <label>Carpeta:</label>
-                        <input type="text" id="diet-folder-input" placeholder="Ej. General" value="General" list="folder-list">
-                        <datalist id="folder-list"></datalist>
+                        <select id="diet-folder-select" onchange="toggleNewFolderInput()" style="margin-bottom: 15px;">
+                            <option value="General">General</option>
+                        </select>
+                        <input type="text" id="diet-folder-input-new" placeholder="Nombre de la nueva carpeta..." style="display: none; margin-bottom: 15px; border-color: var(--primary);">
                     </div>
+                    
                     <div style="flex: 1; min-width: 120px;">
                         <label>Peso paciente (kg):</label>
                         <input type="number" id="patient-weight" placeholder="Ej. 75" oninput="saveFormState(); renderTemplate();" step="0.1">
                     </div>
                 </div>
+                
                 <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 15px;">
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
                     <div style="flex: 1; min-width: 150px;">
@@ -283,7 +288,7 @@
 
             <div class="card" id="ficha-form">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 id="ficha-form-title">📋 Nueva Ficha Dietética</h2>
+                    <h2 id="ficha-form-title" style="margin: 0;">📋 Nueva Ficha Dietética</h2>
                     <div style="display: flex; gap: 10px;">
                         <button class="btn-blue" id="btn-save-ficha" onclick="saveFicha()">💾 Guardar Ficha</button>
                         <button class="btn-delete" id="btn-new-ficha" onclick="clearFicha(true)" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
@@ -660,6 +665,19 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
+        function toggleNewFolderInput() {
+            const select = document.getElementById('diet-folder-select');
+            const input = document.getElementById('diet-folder-input-new');
+            if (select.value === 'NEW') {
+                select.style.marginBottom = '5px';
+                input.style.display = 'block';
+            } else {
+                select.style.marginBottom = '15px';
+                input.style.display = 'none';
+                input.value = '';
+            }
+        }
+
         // ACTIVAR DESELECCIÓN DE RADIO BUTTONS AL VOLVER A CLICKAR
         let lastRadioClicked = null;
         document.addEventListener('mousedown', (e) => {
@@ -745,6 +763,7 @@
                     savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
                 }
 
+                // Cargar Fichas
                 const { data: fichasData } = await db.from('fichas_pacientes').select('*').eq('user_id', currentUser.id);
                 if (fichasData) savedFichas = fichasData;
 
@@ -1000,22 +1019,36 @@
 
         // --- FUNCIONES RESTANTES ---
         function getUniqueFolders() {
-            const folders = savedDiets.map(d => d.carpeta || 'General');
+            let folders = savedDiets.map(d => d.carpeta || 'General');
+            if (!folders.includes('General')) folders.push('General');
             return [...new Set(folders)].sort();
         }
 
         function updateFolderUI() {
             const folders = getUniqueFolders();
-            const datalist = document.getElementById('folder-list');
-            const filterSelect = document.getElementById('filter-folder-select');
             
-            datalist.innerHTML = '';
+            const folderSelect = document.getElementById('diet-folder-select');
+            const currentSaveVal = folderSelect.value;
+            folderSelect.innerHTML = '';
             folders.forEach(f => {
                 const opt = document.createElement('option');
                 opt.value = f;
-                datalist.appendChild(opt);
+                opt.textContent = f;
+                folderSelect.appendChild(opt);
             });
+            const newOpt = document.createElement('option');
+            newOpt.value = 'NEW';
+            newOpt.textContent = '➕ Crear nueva carpeta...';
+            folderSelect.appendChild(newOpt);
             
+            if (folders.includes(currentSaveVal)) {
+                folderSelect.value = currentSaveVal;
+            } else {
+                folderSelect.value = 'General';
+            }
+            toggleNewFolderInput();
+
+            const filterSelect = document.getElementById('filter-folder-select');
             const currentFilter = filterSelect.value;
             filterSelect.innerHTML = '<option value="ALL">Todas las carpetas</option>';
             folders.forEach(f => {
@@ -1122,7 +1155,8 @@
             if (currentTemplate.length === 0) return alert("La plantilla está vacía.");
             const dietName = document.getElementById('diet-name-input').value.trim(); 
             const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
-            const carpetaName = document.getElementById('diet-folder-input').value.trim() || 'General';
+            const folderSelectVal = document.getElementById('diet-folder-select').value;
+            const carpetaName = (folderSelectVal === 'NEW' ? document.getElementById('diet-folder-input-new').value.trim() : folderSelectVal) || 'General';
             
             if (!dietName) return alert("Ponle nombre a la dieta.");
             
@@ -1154,7 +1188,8 @@
                 document.getElementById('d-id').value = diet.id;
                 document.getElementById('diet-name-input').value = diet.name; 
                 document.getElementById('patient-weight').value = diet.weight || ''; 
-                document.getElementById('diet-folder-input').value = diet.carpeta || 'General';
+                document.getElementById('diet-folder-select').value = diet.carpeta || 'General';
+                toggleNewFolderInput();
                 
                 document.getElementById('diet-form-title').innerHTML = `✏️ Editando: <span style='color: var(--blue);'>${diet.name}</span>`;
                 document.getElementById('btn-save-diet').textContent = "🔄 Actualizar Dieta";
@@ -1170,7 +1205,9 @@
             document.getElementById('d-id').value = '';
             document.getElementById('diet-name-input').value = '';
             document.getElementById('patient-weight').value = '';
-            document.getElementById('diet-folder-input').value = 'General';
+            document.getElementById('diet-folder-select').value = 'General';
+            document.getElementById('diet-folder-input-new').value = '';
+            toggleNewFolderInput();
             
             document.getElementById('diet-form-title').innerHTML = "📂 Datos de la Dieta";
             document.getElementById('btn-save-diet').innerHTML = "☁️ Guardar Dieta";
