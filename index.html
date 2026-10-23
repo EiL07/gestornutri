@@ -128,20 +128,39 @@
         <!-- ========================================== -->
         <div id="tab-main" class="tab-content active">
             <div class="card" style="border-left: 5px solid var(--blue);">
-                <h2>📂 Datos del Paciente y Guardado</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 id="diet-form-title">📂 Datos de la Dieta</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-blue" id="btn-save-diet" onclick="saveDiet()">☁️ Guardar Dieta</button>
+                        <button class="btn-delete" id="btn-new-diet" onclick="clearDietForm()" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="d-id">
+
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 15px;">
                     <div style="flex: 2; min-width: 250px;">
                         <label>Nombre del paciente / Dieta:</label>
                         <input type="text" id="diet-name-input" placeholder="Ej. Menú paciente Carlos - Semana 1">
                     </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <label>Carpeta:</label>
+                        <input type="text" id="diet-folder-input" placeholder="Ej. General" value="General" list="folder-list">
+                        <datalist id="folder-list"></datalist>
+                    </div>
                     <div style="flex: 1; min-width: 120px;">
                         <label>Peso paciente (kg):</label>
                         <input type="number" id="patient-weight" placeholder="Ej. 75" oninput="saveFormState(); renderTemplate();" step="0.1">
                     </div>
-                    <div><button class="btn-blue" onclick="saveDiet()" style="margin-bottom: 15px;">☁️ Guardar Dieta</button></div>
                 </div>
                 <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 15px;">
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <label>Filtrar por Carpeta:</label>
+                        <select id="filter-folder-select" onchange="updateDietSelectOptions()">
+                            <option value="ALL">Todas las carpetas</option>
+                        </select>
+                    </div>
                     <div style="flex: 2; min-width: 250px;">
                         <label>Cargar dieta guardada:</label>
                         <select id="saved-diets-select"><option value="">Cargando mis dietas...</option></select>
@@ -722,14 +741,14 @@
 
                 const { data: dietData } = await db.from('dietas').select('*').eq('user_id', currentUser.id);
                 if (dietData) {
-                    savedDiets = dietData.map(d => ({ id: d.id, name: d.nombre, weight: d.peso, template: d.plantilla }));
+                    savedDiets = dietData.map(d => ({ id: d.id, name: d.nombre, weight: d.peso, template: d.plantilla, carpeta: d.carpeta || 'General' }));
                     savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
                 }
 
-                // Cargar Fichas
                 const { data: fichasData } = await db.from('fichas_pacientes').select('*').eq('user_id', currentUser.id);
                 if (fichasData) savedFichas = fichasData;
 
+                updateFolderUI();
                 updateFoodSelectOptions(); updateMyFoodsSelect(); updateDietSelectOptions(); updateFichasSelectOptions();
                 restoreFormState(); renderTemplate();
             } catch (err) { console.error(err); }
@@ -815,7 +834,6 @@
                 document.getElementById('f-id').value = ficha.id;
                 const datos = typeof ficha.datos === 'string' ? JSON.parse(ficha.datos) : ficha.datos;
                 
-                // Asegurar que hay suficientes filas de fármacos
                 let maxFarmaco = 0;
                 for (let key in datos) {
                     if (key.startsWith('f-f') && key.endsWith('-nombre')) {
@@ -833,7 +851,6 @@
                     else el.value = datos[el.id] || '';
                 });
                 
-                // Disparar eventos para mostrar casillas ocultas de patologías si procede
                 ['f-pat-ane', 'f-pat-alerg', 'f-pat-card'].forEach(id => {
                     let el = document.getElementById(id);
                     if(el) el.dispatchEvent(new Event('change'));
@@ -852,7 +869,6 @@
             if(!force && !confirm("¿Limpiar todo el formulario?")) return;
             document.getElementById('f-id').value = '';
             
-            // Restablecer filas de fármacos a 1
             document.getElementById('farmacos-tbody').innerHTML = `
                 <tr>
                     <td><input type="text" id="f-f1-nombre" class="f-input"></td>
@@ -873,7 +889,6 @@
                 else el.value = '';
             });
             
-            // Ocultar de nuevo los campos condicionales
             ['f-pat-ane', 'f-pat-alerg', 'f-pat-card'].forEach(id => {
                 let el = document.getElementById(id);
                 if(el) el.dispatchEvent(new Event('change'));
@@ -984,6 +999,36 @@
         }
 
         // --- FUNCIONES RESTANTES ---
+        function getUniqueFolders() {
+            const folders = savedDiets.map(d => d.carpeta || 'General');
+            return [...new Set(folders)].sort();
+        }
+
+        function updateFolderUI() {
+            const folders = getUniqueFolders();
+            const datalist = document.getElementById('folder-list');
+            const filterSelect = document.getElementById('filter-folder-select');
+            
+            datalist.innerHTML = '';
+            folders.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                datalist.appendChild(opt);
+            });
+            
+            const currentFilter = filterSelect.value;
+            filterSelect.innerHTML = '<option value="ALL">Todas las carpetas</option>';
+            folders.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = `📁 ${f}`;
+                filterSelect.appendChild(opt);
+            });
+            if(folders.includes(currentFilter) || currentFilter === 'ALL') {
+                filterSelect.value = currentFilter;
+            }
+        }
+
         function updateFoodSelectOptions() {
             const select = document.getElementById('food-select'); select.innerHTML = '<option value="">--- Selecciona un alimento ---</option>';
             foodDatabase.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => { const option = document.createElement('option'); option.value = food.id; option.textContent = food.user_id ? `👤 ${food.alimento}` : food.alimento; select.appendChild(option); });
@@ -1044,10 +1089,26 @@
                 if (!error) { alert("Guardado!"); clearManualFormState(); cancelManualEdit(); initApp(); }
             }
         }
+        
         function updateDietSelectOptions() {
-            const select = document.getElementById('saved-diets-select'); select.innerHTML = savedDiets.length === 0 ? '<option value="">No tienes dietas guardadas...</option>' : '<option value="">--- Selecciona una dieta ---</option>';
-            [...savedDiets].forEach(diet => { const option = document.createElement('option'); option.value = diet.id; option.textContent = diet.name; select.appendChild(option); });
+            const filter = document.getElementById('filter-folder-select').value;
+            const select = document.getElementById('saved-diets-select');
+            
+            let filteredDiets = savedDiets;
+            if(filter !== 'ALL') {
+                filteredDiets = savedDiets.filter(d => (d.carpeta || 'General') === filter);
+            }
+            
+            select.innerHTML = filteredDiets.length === 0 ? '<option value="">No hay dietas en esta carpeta...</option>' : '<option value="">--- Selecciona una dieta ---</option>';
+            
+            [...filteredDiets].forEach(diet => { 
+                const option = document.createElement('option'); 
+                option.value = diet.id; 
+                option.textContent = (filter === 'ALL' ? `[${diet.carpeta || 'General'}] ` : '') + diet.name; 
+                select.appendChild(option); 
+            });
         }
+        
         function saveFormState() {
             const state = { meal: document.getElementById('meal-select').value, food: document.getElementById('food-select').value, grams: document.getElementById('grams-input').value, weight: document.getElementById('patient-weight').value };
             localStorage.setItem('temp_form_state', JSON.stringify(state));
@@ -1056,25 +1117,80 @@
             const saved = localStorage.getItem('temp_form_state');
             if (saved) { try { const state = JSON.parse(saved); if (state.meal) document.getElementById('meal-select').value = state.meal; if (state.food) document.getElementById('food-select').value = state.food; if (state.grams) document.getElementById('grams-input').value = state.grams; if (state.weight) document.getElementById('patient-weight').value = state.weight; } catch(e) {} }
         }
+        
         async function saveDiet() {
-            if (currentTemplate.length === 0) return alert("Plantilla vacía.");
-            const dietName = document.getElementById('diet-name-input').value.trim(); const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
-            if (!dietName) return alert("Ponle nombre.");
-            const { error } = await db.from('dietas').insert([{ nombre: dietName, peso: patientWeight, plantilla: currentTemplate, user_id: currentUser.id }]);
-            if (!error) { alert("Dieta guardada."); document.getElementById('diet-name-input').value = ''; initApp(); }
+            if (currentTemplate.length === 0) return alert("La plantilla está vacía.");
+            const dietName = document.getElementById('diet-name-input').value.trim(); 
+            const patientWeight = parseFloat(document.getElementById('patient-weight').value) || null;
+            const carpetaName = document.getElementById('diet-folder-input').value.trim() || 'General';
+            
+            if (!dietName) return alert("Ponle nombre a la dieta.");
+            
+            const dietId = document.getElementById('d-id').value;
+
+            if (dietId) {
+                const { error } = await db.from('dietas').update({ 
+                    nombre: dietName, peso: patientWeight, plantilla: currentTemplate, carpeta: carpetaName 
+                }).eq('id', dietId);
+                
+                if (!error) { alert("Dieta actualizada correctamente."); initApp(); } else alert("Error: " + error.message);
+            } else {
+                const { error } = await db.from('dietas').insert([{ 
+                    nombre: dietName, peso: patientWeight, plantilla: currentTemplate, carpeta: carpetaName, user_id: currentUser.id 
+                }]);
+                
+                if (!error) { alert("Dieta guardada correctamente."); clearDietForm(true); initApp(); } else alert("Error: " + error.message);
+            }
         }
+        
         function loadDiet() {
-            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return;
-            if (currentTemplate.length > 0 && !confirm("¿Sustituir plantilla?")) return;
+            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return alert("Selecciona una dieta.");
+            if (currentTemplate.length > 0 && !document.getElementById('d-id').value && !confirm("¿Sustituir la plantilla actual?")) return;
+            
             const diet = savedDiets.find(d => String(d.id) === String(selectVal));
-            if (diet) { currentTemplate = JSON.parse(JSON.stringify(diet.template)); document.getElementById('diet-name-input').value = diet.name; document.getElementById('patient-weight').value = diet.weight || ''; saveFormState(); renderTemplate(); }
+            if (diet) { 
+                currentTemplate = JSON.parse(JSON.stringify(diet.template)); 
+                
+                document.getElementById('d-id').value = diet.id;
+                document.getElementById('diet-name-input').value = diet.name; 
+                document.getElementById('patient-weight').value = diet.weight || ''; 
+                document.getElementById('diet-folder-input').value = diet.carpeta || 'General';
+                
+                document.getElementById('diet-form-title').innerHTML = `✏️ Editando: <span style='color: var(--blue);'>${diet.name}</span>`;
+                document.getElementById('btn-save-diet').textContent = "🔄 Actualizar Dieta";
+                document.getElementById('btn-new-diet').style.display = 'inline-block';
+                
+                saveFormState(); renderTemplate(); 
+            }
         }
+        
+        function clearDietForm(keepTemplate = false) {
+            if(!keepTemplate && !confirm("¿Limpiar todo el formulario de la dieta?")) return;
+            
+            document.getElementById('d-id').value = '';
+            document.getElementById('diet-name-input').value = '';
+            document.getElementById('patient-weight').value = '';
+            document.getElementById('diet-folder-input').value = 'General';
+            
+            document.getElementById('diet-form-title').innerHTML = "📂 Datos de la Dieta";
+            document.getElementById('btn-save-diet').innerHTML = "☁️ Guardar Dieta";
+            document.getElementById('btn-new-diet').style.display = 'none';
+            document.getElementById('saved-diets-select').value = '';
+            
+            if (!keepTemplate) {
+                currentTemplate = [];
+                renderTemplate();
+            }
+        }
+        
         async function deleteDiet() {
-            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return;
-            if (!confirm("¿Borrar?")) return;
+            const selectVal = document.getElementById('saved-diets-select').value; if (!selectVal) return alert("Selecciona una dieta de la lista.");
+            if (!confirm("¿Borrar esta dieta permanentemente?")) return;
             selectedDietIds = selectedDietIds.filter(id => id !== selectVal);
-            const { error } = await db.from('dietas').delete().eq('id', selectVal); if (!error) initApp();
+            const { error } = await db.from('dietas').delete().eq('id', selectVal); 
+            if (!error) { alert("Dieta borrada."); clearDietForm(true); initApp(); }
         }
+        
         function addToTemplate() {
             const selectVal = document.getElementById('food-select').value; const grams = parseFloat(document.getElementById('grams-input').value); const meal = document.getElementById('meal-select').value;
             if(!selectVal || !grams || grams <= 0) return alert("Completa datos.");
@@ -1094,7 +1210,7 @@
             }
         }
         function removeFromTemplate(id) { currentTemplate = currentTemplate.filter(item => item.id !== id); renderTemplate(); }
-        function clearTemplate() { if (currentTemplate.length > 0 && confirm("¿Limpiar todo?")) { currentTemplate = []; renderTemplate(); } }
+        function clearTemplate() { if (currentTemplate.length > 0 && confirm("¿Vaciar toda la tabla de alimentos?")) { currentTemplate = []; renderTemplate(); } }
         function toggleView() { showAllMicros = !showAllMicros; document.getElementById('toggle-view-btn').innerHTML = showAllMicros ? "👁️ Ocultar micronutrientes" : "👁️ Ver todos los micronutrientes"; renderTemplate(); }
 
         function renderTemplate() {
