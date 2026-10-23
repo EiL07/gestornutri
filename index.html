@@ -440,7 +440,6 @@
                         <div><label>Perímetro muñeca (cm):</label><input type="text" id="f-pmun" class="f-input"></div>
                         <div><label>Perímetro brazo (cm):</label><input type="text" id="f-pbrazo" class="f-input"></div>
                         <div><label>Peso deseado:</label><input type="text" id="f-pdeseado" class="f-input"></div>
-                        <div><label>Peso anterior:</label><input type="text" id="f-pant" class="f-input"></div>
                     </div>
                     
                     <label style="margin-top: 15px;">¿Cuánto tiempo llevas con tu peso actual?</label>
@@ -619,6 +618,12 @@
                     </div>
                 </div>
 
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <button class="btn-blue" id="btn-save-ficha-bottom" onclick="saveFicha()">💾 Guardar Ficha</button>
+                    <button class="btn-delete" id="btn-new-ficha-bottom" onclick="clearFicha(true)" style="display:none; background-color: #95A5A6;">📝 Nueva</button>
+                    <button class="btn-delete" onclick="clearFicha()">🗑️ Limpiar</button>
+                </div>
+
             </div>
         </div> <!-- Fin Tab Ficha -->
 
@@ -768,14 +773,17 @@
                 option.value = f.id; 
                 let apellidos = "";
                 try { apellidos = JSON.parse(f.datos)['f-apellidos'] || ""; } catch(e) {}
-                option.textContent = `${f.nombre} ${apellidos}`;
+                option.textContent = (apellidos && !f.nombre.includes(apellidos)) ? `${f.nombre} ${apellidos}` : f.nombre;
                 select.appendChild(option);
             });
         }
 
         async function saveFicha() {
-            const nombre = document.getElementById('f-nombre').value.trim();
-            if(!nombre) return alert("El campo Nombre es obligatorio para guardar la ficha.");
+            const nombreBase = document.getElementById('f-nombre').value.trim();
+            const apellidos = document.getElementById('f-apellidos').value.trim();
+            if(!nombreBase) return alert("El campo Nombre es obligatorio para guardar la ficha.");
+            
+            const nombreCompleto = apellidos ? `${nombreBase} ${apellidos}` : nombreBase;
 
             let datos = {};
             document.querySelectorAll('.f-input').forEach(el => {
@@ -787,10 +795,10 @@
             const fichaId = document.getElementById('f-id').value;
 
             if (fichaId) {
-                const { error } = await db.from('fichas_pacientes').update({ nombre: nombre, datos: datos }).eq('id', fichaId);
+                const { error } = await db.from('fichas_pacientes').update({ nombre: nombreCompleto, datos: datos }).eq('id', fichaId);
                 if(error) alert(error.message); else { alert("Ficha actualizada correctamente."); initApp(); }
             } else {
-                const { error } = await db.from('fichas_pacientes').insert([{ nombre: nombre, datos: datos, user_id: currentUser.id }]);
+                const { error } = await db.from('fichas_pacientes').insert([{ nombre: nombreCompleto, datos: datos, user_id: currentUser.id }]);
                 if(error) alert(error.message); else { 
                     alert("Ficha guardada correctamente."); 
                     clearFicha(true);
@@ -833,7 +841,10 @@
 
                 document.getElementById('ficha-form-title').innerHTML = `✏️ Editando: <span style='color: var(--accent);'>${ficha.nombre}</span>`;
                 document.getElementById('btn-save-ficha').textContent = "🔄 Actualizar Ficha";
+                document.getElementById('btn-save-ficha-bottom').textContent = "🔄 Actualizar Ficha";
+                
                 document.getElementById('btn-new-ficha').style.display = 'inline-block';
+                document.getElementById('btn-new-ficha-bottom').style.display = 'inline-block';
             }
         }
 
@@ -870,7 +881,10 @@
 
             document.getElementById('ficha-form-title').textContent = "📋 Nueva Ficha Dietética";
             document.getElementById('btn-save-ficha').textContent = "💾 Guardar Ficha";
+            document.getElementById('btn-save-ficha-bottom').textContent = "💾 Guardar Ficha";
+            
             document.getElementById('btn-new-ficha').style.display = 'none';
+            document.getElementById('btn-new-ficha-bottom').style.display = 'none';
             document.getElementById('saved-fichas-select').value = '';
         }
 
