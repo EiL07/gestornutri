@@ -90,6 +90,10 @@
         .ref-table { flex: 1; min-width: 140px; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .ref-table th, .ref-table td { border: 1px solid #e1e8ed; padding: 6px 8px; text-align: left; background: white; color: var(--dark); font-weight: normal;}
         .ref-table th { background-color: #f0f3f4; color: var(--dark) !important; font-weight: bold; text-align: center; }
+
+        /* MODAL DE INTERCAMBIOS */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal { background: white; padding: 25px 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--accent); }
         
         @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
@@ -104,6 +108,32 @@
             <button onclick="login()" style="width: 100%; margin-bottom: 10px;">Entrar</button>
             <button onclick="register()" class="btn-blue" style="width: 100%; margin-bottom: 15px;">Crear Cuenta Nueva</button>
             <p id="auth-msg" style="color: #E74C3C; font-weight: bold; font-size: 13px;"></p>
+        </div>
+    </div>
+
+    <!-- MODAL DE INTERCAMBIOS (SISTEMA NUEVO) -->
+    <div id="exchange-modal" class="modal-overlay">
+        <div class="modal">
+            <h2 style="margin-bottom: 15px; font-size: 20px;">🔀 Intercambio de Alimentos</h2>
+            <p id="exchange-desc" style="margin-bottom: 20px; font-size: 14px; color: #555;">Sustituyendo: <b>...</b></p>
+            
+            <label>Alimento alternativo:</label>
+            <select id="exchange-food-select" onchange="calculateExchange()"><option value="">Selecciona alternativa...</option></select>
+            
+            <label>Igualar ración respecto a:</label>
+            <select id="exchange-macro-select" onchange="calculateExchange()">
+                <option value="Energía">⚡ Calorías (Energía)</option>
+                <option value="Proteínas">🥩 Proteínas</option>
+                <option value="Hidratos">🍞 Hidratos de Carbono</option>
+                <option value="Lípidos">🥑 Lípidos / Grasas</option>
+            </select>
+            
+            <div id="exchange-result" style="margin: 15px 0; padding: 15px; background: #e8f8f5; border-radius: 8px; font-weight: bold; text-align: center; border: 1px solid var(--primary); display: none;"></div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+                <button class="btn-delete" onclick="closeExchangeModal()">Cancelar</button>
+                <button class="btn-blue" onclick="confirmExchange()">Confirmar Cambio</button>
+            </div>
         </div>
     </div>
 
@@ -577,7 +607,9 @@
                             <label>Cuello y Párpado:</label>
                             <div class="checkbox-group">
                                 <label><input type="checkbox" id="f-cue-norm" class="f-input"> C: Normal</label>
-                                <label><input type="checkbox" id="f-cue-boc" class="f-input"> C: Bocio/Nódulo</label>
+                                <label><input type="checkbox" id="f-cue-boc" class="f-input"> C: Bocio</label>
+                                <label><input type="checkbox" id="f-cue-nod" class="f-input"> C: Nódulo</label>
+                                <label><input type="checkbox" id="f-cue-dolor" class="f-input"> C: Dolor</label>
                                 <label><input type="checkbox" id="f-par-norm" class="f-input"> P: Normal</label>
                                 <label><input type="checkbox" id="f-par-bla" class="f-input"> P: Int. blanco</label>
                                 <label><input type="checkbox" id="f-par-ojer" class="f-input"> P: Ojeras/Bolsas</label>
@@ -664,6 +696,85 @@
 
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
+
+        // LÓGICA DEL MODAL DE INTERCAMBIO
+        let exchangeTargetItemId = null;
+        let calculatedExchangeGrams = 0;
+
+        function openExchangeModal(itemId) {
+            exchangeTargetItemId = itemId;
+            const item = currentTemplate.find(i => i.id === itemId);
+            if(!item) return;
+            
+            document.getElementById('exchange-desc').innerHTML = `Sustituyendo: <b>${item.grams}g de ${item.name}</b>`;
+            
+            const select = document.getElementById('exchange-food-select');
+            select.innerHTML = '<option value="">--- Selecciona alimento alternativo ---</option>';
+            foodDatabase.sort((a, b) => a.alimento.localeCompare(b.alimento)).forEach(food => {
+                const opt = document.createElement('option');
+                opt.value = food.id; opt.textContent = food.user_id ? `👤 ${food.alimento}` : food.alimento;
+                select.appendChild(opt);
+            });
+            
+            document.getElementById('exchange-result').style.display = 'none';
+            document.getElementById('exchange-modal').style.display = 'flex';
+        }
+        
+        function closeExchangeModal() {
+            document.getElementById('exchange-modal').style.display = 'none';
+            exchangeTargetItemId = null;
+        }
+
+        function calculateExchange() {
+            const foodId = document.getElementById('exchange-food-select').value;
+            const macro = document.getElementById('exchange-macro-select').value;
+            const resDiv = document.getElementById('exchange-result');
+            
+            if(!foodId || !exchangeTargetItemId) { resDiv.style.display = 'none'; return; }
+            
+            const originalItem = currentTemplate.find(i => i.id === exchangeTargetItemId);
+            const newFood = foodDatabase.find(f => String(f.id) === String(foodId));
+            
+            const getCol = (terms) => nutrientColumns.find(c => terms.some(t => c.toLowerCase().includes(t)));
+            let colName = "";
+            if (macro === 'Energía') colName = getCol(['energ', 'kcal']);
+            if (macro === 'Proteínas') colName = getCol(['prot']);
+            if (macro === 'Hidratos') colName = getCol(['hidrat', 'carb']);
+            if (macro === 'Lípidos') colName = getCol(['lípid', 'lipid', 'grasas']);
+            
+            if(!colName) { resDiv.innerHTML = `⚠️ No se encuentra el nutriente en la base de datos.`; resDiv.style.display = 'block'; return; }
+            
+            const targetAmount = originalItem[colName] || 0;
+            const newFoodPer100 = newFood[colName] || 0;
+            
+            if(newFoodPer100 === 0) {
+                resDiv.innerHTML = `⚠️ El nuevo alimento tiene 0 ${macro}. No se puede igualar.`;
+                resDiv.style.display = 'block';
+                calculatedExchangeGrams = 0;
+                return;
+            }
+            
+            calculatedExchangeGrams = (targetAmount / newFoodPer100) * 100;
+            resDiv.innerHTML = `Se necesitan <span style="font-size:1.2em; color:var(--primary);">${calculatedExchangeGrams.toFixed(1)}g</span> de ${newFood.alimento} para igualar los ${targetAmount.toFixed(1)} de ${macro}.`;
+            resDiv.style.display = 'block';
+        }
+
+        function confirmExchange() {
+            if(!exchangeTargetItemId || calculatedExchangeGrams <= 0) return alert("Configura el intercambio primero.");
+            const foodId = document.getElementById('exchange-food-select').value;
+            const newFood = foodDatabase.find(f => String(f.id) === String(foodId));
+            let item = currentTemplate.find(i => i.id === exchangeTargetItemId);
+            
+            if(item && newFood) {
+                item.foodId = newFood.id;
+                item.name = newFood.alimento;
+                item.grams = calculatedExchangeGrams;
+                let m = calculatedExchangeGrams / 100;
+                nutrientColumns.forEach(col => { item[col] = (newFood[col] * m); });
+                renderTemplate();
+                closeExchangeModal();
+            }
+        }
 
         function toggleNewFolderInput() {
             const select = document.getElementById('diet-folder-select');
@@ -1262,7 +1373,7 @@
             let totalAtwater = 0; let dailyTotals = {}; colsToRender.forEach(col => dailyTotals[col] = 0);
             currentTemplate.forEach(item => { colsToRender.forEach(col => { dailyTotals[col] += item[col]; }); });
             if (protCol && lipCol && carbCol) { totalAtwater = ((dailyTotals[protCol]||0) * 4) + ((dailyTotals[lipCol]||0) * 9) + ((dailyTotals[carbCol]||0) * 4); }
-            const thead = document.getElementById('template-head'); let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`; colsToRender.forEach(col => headHtml += `<th>${col}</th>`); thead.innerHTML = headHtml + `<th>X</th></tr>`;
+            const thead = document.getElementById('template-head'); let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`; colsToRender.forEach(col => headHtml += `<th>${col}</th>`); thead.innerHTML = headHtml + `<th></th></tr>`;
             const tbody = document.getElementById('template-body'); tbody.innerHTML = '';
             mealOrder.forEach(meal => {
                 const items = currentTemplate.filter(i => i.meal === meal);
@@ -1275,7 +1386,7 @@
                     items.forEach(item => {
                         let rowHtml = `<tr><td class="sticky-col">${item.name}</td><td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
                         colsToRender.forEach(col => { rowHtml += `<td>${item[col].toFixed(1)}</td>`; });
-                        tbody.innerHTML += rowHtml + `<td><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
+                        tbody.innerHTML += rowHtml + `<td style="white-space: nowrap;"><button class="btn-toggle" style="padding: 4px 6px; font-size: 11px; margin-right: 4px;" onclick="openExchangeModal(${item.id})" title="Intercambiar">🔀</button><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
                     });
                     let subHtml = `<tr class="subtotals"><td class="sticky-col" style="text-align:right">Subtotal:` + (mealAtwater > 0 ? `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>` : '') + `</td><td>-</td>`;
                     colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`); tbody.innerHTML += subHtml + `<td></td></tr>`;
