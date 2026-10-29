@@ -14,7 +14,9 @@
         .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         h1, h2, h3, h4 { margin-top: 0; color: var(--dark); }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
-        input[type="text"], input[type="number"], input[type="email"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
+        
+        /* FIX VISUAL APLICADO: Añadido input[type="password"] para igualar los recuadros de contraseña */
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
         textarea { resize: vertical; min-height: 60px; }
         input[type="radio"], input[type="checkbox"] { margin-right: 5px; transform: scale(1.1); }
         .radio-group, .checkbox-group { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; font-size: 13px;}
@@ -23,6 +25,8 @@
         button { background-color: var(--primary); color: var(--white); border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { filter: brightness(0.9); }
         .btn-blue { background-color: var(--blue); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
         .btn-delete { background-color: #E74C3C; }
         .btn-delete-small { background-color: #E74C3C; padding: 5px 10px; font-size: 12px; }
         .btn-toggle { background-color: #F39C12; padding: 12px; font-size: 14px;}
@@ -37,8 +41,9 @@
         .sticky-col { position: sticky; left: 0; background-color: white; z-index: 5; font-weight: bold; border-right: 2px solid #eee;}
         th.sticky-col { z-index: 15; background-color: var(--dark); border-right: 2px solid #555;}
         
+        /* ESTILOS DE AUTENTICACIÓN MEJORADOS */
         #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
-        .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; transition: opacity 0.3s ease; }
         .auth-card input { margin-bottom: 20px; }
         #app-screen { display: none; }
         
@@ -100,43 +105,33 @@
 </head>
 <body>
 
+    <!-- SISTEMA DE AUTENTICACIÓN MEJORADO -->
     <div id="auth-screen">
-        <div class="auth-card">
-            <h2 style="font-size: 24px; margin-bottom: 25px;">🥑 Acceso Clínico</h2>
-            <input type="email" id="email" placeholder="Correo electrónico">
-            <input type="password" id="password" placeholder="Contraseña (mínimo 6 caracteres)">
-            <button onclick="login()" style="width: 100%; margin-bottom: 10px;">Entrar</button>
-            <button onclick="register()" class="btn-blue" style="width: 100%; margin-bottom: 15px;">Crear Cuenta Nueva</button>
-            <p id="auth-msg" style="color: #E74C3C; font-weight: bold; font-size: 13px;"></p>
+        
+        <!-- PANEL DE LOGIN -->
+        <div class="auth-card" id="login-panel">
+            <h2 style="font-size: 24px; margin-bottom: 25px; color: var(--dark);">🥑 Acceso Clínico</h2>
+            <input type="email" id="login-email" placeholder="Correo electrónico">
+            <input type="password" id="login-password" placeholder="Contraseña">
+            <button onclick="login()" style="width: 100%; margin-bottom: 10px; padding: 12px; font-size: 15px;">Iniciar Sesión</button>
+            <button onclick="toggleAuthPanel('register')" class="btn-outline" style="width: 100%; padding: 12px; margin-bottom: 15px;">Crear una Cuenta Nueva</button>
+            <p id="login-msg" style="color: #E74C3C; font-weight: bold; font-size: 13px; margin: 0; min-height: 20px;"></p>
         </div>
+
+        <!-- PANEL DE REGISTRO -->
+        <div class="auth-card" id="register-panel" style="display: none;">
+            <h2 style="font-size: 24px; margin-bottom: 25px; color: var(--blue);">👤 Crear Cuenta</h2>
+            <input type="email" id="reg-email" placeholder="Correo electrónico">
+            <input type="password" id="reg-password" placeholder="Contraseña (mínimo 6 caracteres)">
+            <input type="password" id="reg-confirm" placeholder="Repite tu contraseña">
+            <button onclick="register()" class="btn-blue" style="width: 100%; margin-bottom: 10px; padding: 12px; font-size: 15px;">Crear Cuenta</button>
+            <button onclick="toggleAuthPanel('login')" class="btn-outline" style="width: 100%; padding: 12px; margin-bottom: 15px;">Volver a Inicio de Sesión</button>
+            <p id="reg-msg" style="color: #E74C3C; font-weight: bold; font-size: 13px; margin: 0; min-height: 20px;"></p>
+        </div>
+
     </div>
 
-    <!-- MODAL DE INTERCAMBIOS (SISTEMA NUEVO) -->
-    <div id="exchange-modal" class="modal-overlay">
-        <div class="modal">
-            <h2 style="margin-bottom: 15px; font-size: 20px;">🔀 Intercambio de Alimentos</h2>
-            <p id="exchange-desc" style="margin-bottom: 20px; font-size: 14px; color: #555;">Sustituyendo: <b>...</b></p>
-            
-            <label>Alimento alternativo:</label>
-            <select id="exchange-food-select" onchange="calculateExchange()"><option value="">Selecciona alternativa...</option></select>
-            
-            <label>Igualar ración respecto a:</label>
-            <select id="exchange-macro-select" onchange="calculateExchange()">
-                <option value="Energía">⚡ Calorías (Energía)</option>
-                <option value="Proteínas">🥩 Proteínas</option>
-                <option value="Hidratos">🍞 Hidratos de Carbono</option>
-                <option value="Lípidos">🥑 Lípidos / Grasas</option>
-            </select>
-            
-            <div id="exchange-result" style="margin: 15px 0; padding: 15px; background: #e8f8f5; border-radius: 8px; font-weight: bold; text-align: center; border: 1px solid var(--primary); display: none;"></div>
-            
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
-                <button class="btn-delete" onclick="closeExchangeModal()">Cancelar</button>
-                <button class="btn-blue" onclick="confirmExchange()">Confirmar Cambio</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- APLICACIÓN PRINCIPAL -->
     <div id="app-screen" class="container">
         
         <div class="header-bar">
@@ -151,6 +146,32 @@
             <button id="btn-tab-main" class="tab-btn active" onclick="switchTab('main')">📝 Gestor de Dietas</button>
             <button id="btn-tab-progress" class="tab-btn" onclick="switchTab('progress')">📈 Progreso y Gráficas</button>
             <button id="btn-tab-patient" class="tab-btn" onclick="switchTab('patient')">📋 Ficha Dietética</button>
+        </div>
+
+        <!-- MODAL DE INTERCAMBIOS -->
+        <div id="exchange-modal" class="modal-overlay">
+            <div class="modal">
+                <h2 style="margin-bottom: 15px; font-size: 20px;">🔀 Intercambio de Alimentos</h2>
+                <p id="exchange-desc" style="margin-bottom: 20px; font-size: 14px; color: #555;">Sustituyendo: <b>...</b></p>
+                
+                <label>Alimento alternativo:</label>
+                <select id="exchange-food-select" onchange="calculateExchange()"><option value="">Selecciona alternativa...</option></select>
+                
+                <label>Igualar ración respecto a:</label>
+                <select id="exchange-macro-select" onchange="calculateExchange()">
+                    <option value="Energía">⚡ Calorías (Energía)</option>
+                    <option value="Proteínas">🥩 Proteínas</option>
+                    <option value="Hidratos">🍞 Hidratos de Carbono</option>
+                    <option value="Lípidos">🥑 Lípidos / Grasas</option>
+                </select>
+                
+                <div id="exchange-result" style="margin: 15px 0; padding: 15px; background: #e8f8f5; border-radius: 8px; font-weight: bold; text-align: center; border: 1px solid var(--primary); display: none;"></div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+                    <button class="btn-delete" onclick="closeExchangeModal()">Cancelar</button>
+                    <button class="btn-blue" onclick="confirmExchange()">Confirmar Cambio</button>
+                </div>
+            </div>
         </div>
 
         <!-- ========================================== -->
@@ -697,6 +718,27 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
+        // LÓGICA DEL PANEL DE AUTENTICACIÓN
+        function toggleAuthPanel(mode) {
+            if(mode === 'register') {
+                document.getElementById('login-panel').style.display = 'none';
+                document.getElementById('register-panel').style.display = 'block';
+                document.getElementById('login-msg').textContent = '';
+            } else {
+                document.getElementById('register-panel').style.display = 'none';
+                document.getElementById('login-panel').style.display = 'block';
+                document.getElementById('reg-msg').textContent = '';
+            }
+        }
+        
+        // EVENT LISTENER PARA BOTÓN ENTER
+        document.getElementById('login-password').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') login();
+        });
+        document.getElementById('reg-confirm').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') register();
+        });
+
         // LÓGICA DEL MODAL DE INTERCAMBIO
         let exchangeTargetItemId = null;
         let calculatedExchangeGrams = 0;
@@ -819,20 +861,39 @@
         });
 
         async function register() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('auth-msg');
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPass = document.getElementById('reg-confirm').value;
+            const msg = document.getElementById('reg-msg');
+            
+            if (password !== confirmPass) {
+                msg.textContent = "Las contraseñas no coinciden.";
+                msg.style.color = "#E74C3C";
+                return;
+            }
+            if (!password || password.length < 6) {
+                msg.textContent = "La contraseña debe tener al menos 6 caracteres.";
+                msg.style.color = "#E74C3C";
+                return;
+            }
+            
             msg.textContent = "Creando cuenta...";
+            msg.style.color = "#333";
             const { error } = await db.auth.signUp({ email, password });
-            if (error) msg.textContent = error.message; 
-            else { msg.textContent = "¡Cuenta creada! Ya puedes entrar."; msg.style.color = "green"; }
+            if (error) { msg.textContent = error.message; msg.style.color = "#E74C3C"; }
+            else { 
+                msg.textContent = "¡Cuenta creada! Ya puedes iniciar sesión."; 
+                msg.style.color = "green"; 
+                setTimeout(() => toggleAuthPanel('login'), 2500);
+            }
         }
 
         async function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const msg = document.getElementById('auth-msg');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const msg = document.getElementById('login-msg');
             msg.textContent = "Entrando...";
+            msg.style.color = "#333";
             const { error } = await db.auth.signInWithPassword({ email, password });
             if (error) { msg.textContent = "Correo o contraseña incorrectos."; msg.style.color = "#E74C3C"; }
         }
