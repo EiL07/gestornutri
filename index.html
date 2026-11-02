@@ -14,8 +14,6 @@
         .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         h1, h2, h3, h4 { margin-top: 0; color: var(--dark); }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
-        
-        /* FIX VISUAL APLICADO: Añadido input[type="password"] para igualar los recuadros de contraseña */
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
         textarea { resize: vertical; min-height: 60px; }
         input[type="radio"], input[type="checkbox"] { margin-right: 5px; transform: scale(1.1); }
@@ -41,7 +39,6 @@
         .sticky-col { position: sticky; left: 0; background-color: white; z-index: 5; font-weight: bold; border-right: 2px solid #eee;}
         th.sticky-col { z-index: 15; background-color: var(--dark); border-right: 2px solid #555;}
         
-        /* ESTILOS DE AUTENTICACIÓN MEJORADOS */
         #auth-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
         .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; transition: opacity 0.3s ease; }
         .auth-card input { margin-bottom: 20px; }
@@ -311,6 +308,8 @@
                 <div class="chart-box" style="grid-column: 1 / -1;"><canvas id="chart-energia"></canvas></div>
                 <div class="chart-box"><canvas id="chart-proteinas"></canvas></div>
                 <div class="chart-box"><canvas id="chart-proteinas-perc"></canvas></div>
+                <div class="chart-box"><canvas id="chart-prot-ratio"></canvas></div>
+                <div class="chart-box"><canvas id="chart-carb-ratio"></canvas></div>
                 <div class="chart-box"><canvas id="chart-lipidos"></canvas></div>
                 <div class="chart-box"><canvas id="chart-lipidos-perc"></canvas></div>
                 <div class="chart-box"><canvas id="chart-hidratos"></canvas></div>
@@ -1152,26 +1151,43 @@
 
             const getCol = (terms) => nutrientColumns.find(c => terms.some(t => c.toLowerCase().includes(t)));
             let engCol = getCol(['energ', 'kcal']), protCol = getCol(['prot']), lipCol = getCol(['lípid', 'lipid', 'grasas']), carbCol = getCol(['hidrat', 'carb']), fibrCol = getCol(['fibr']);
-            let labels = [], dataEnergia = [], dataProteinas = [], dataLipidos = [], dataHidratos = [], dataFibra = [], dataProtPerc = [], dataLipPerc = [], dataCarbPerc = [];
+            
+            let labels = [], dataEnergia = [], dataProteinas = [], dataLipidos = [], dataHidratos = [], dataFibra = [];
+            let dataProtPerc = [], dataLipPerc = [], dataCarbPerc = [];
+            let dataProtRatio = [], dataCarbRatio = [];
 
             dietsToPlot.forEach(diet => {
                 labels.push(diet.name);
                 let totEng = 0, totProt = 0, totLip = 0, totCarb = 0, totFibr = 0;
+                
                 diet.template.forEach(item => {
                     if(engCol) totEng += item[engCol] || 0; if(protCol) totProt += item[protCol] || 0;
                     if(lipCol) totLip += item[lipCol] || 0; if(carbCol) totCarb += item[carbCol] || 0;
                     if(fibrCol) totFibr += item[fibrCol] || 0;
                 });
+                
                 let atwater = (totProt * 4) + (totLip * 9) + (totCarb * 4);
-                dataEnergia.push(totEng.toFixed(1)); dataProteinas.push(totProt.toFixed(1)); dataLipidos.push(totLip.toFixed(1)); dataHidratos.push(totCarb.toFixed(1)); dataFibra.push(totFibr.toFixed(1));
+                let weight = parseFloat(diet.weight) || 0;
+                
+                dataEnergia.push(totEng.toFixed(1)); 
+                dataProteinas.push(totProt.toFixed(1)); 
+                dataLipidos.push(totLip.toFixed(1)); 
+                dataHidratos.push(totCarb.toFixed(1)); 
+                dataFibra.push(totFibr.toFixed(1));
+                
                 dataProtPerc.push(atwater > 0 ? ((totProt * 4) / atwater * 100).toFixed(1) : 0);
                 dataLipPerc.push(atwater > 0 ? ((totLip * 9) / atwater * 100).toFixed(1) : 0);
                 dataCarbPerc.push(atwater > 0 ? ((totCarb * 4) / atwater * 100).toFixed(1) : 0);
+                
+                dataProtRatio.push(weight > 0 ? (totProt / weight).toFixed(2) : 0);
+                dataCarbRatio.push(weight > 0 ? (totCarb / weight).toFixed(2) : 0);
             });
 
             buildSingleChart('chart-energia', '⚡ Energía Total (kcal)', labels, dataEnergia, '#F39C12', false);
             buildSingleChart('chart-proteinas', '🥩 Proteínas (g)', labels, dataProteinas, '#E74C3C', false);
             buildSingleChart('chart-proteinas-perc', '🥩 Proteínas (% Atwater)', labels, dataProtPerc, '#C0392B', true);
+            buildSingleChart('chart-prot-ratio', '⚖️ Proteínas (g/kg)', labels, dataProtRatio, '#E67E22', false);
+            buildSingleChart('chart-carb-ratio', '⚖️ Hidratos (g/kg)', labels, dataCarbRatio, '#2980B9', false);
             buildSingleChart('chart-lipidos', '🥑 Lípidos / Grasas (g)', labels, dataLipidos, '#8E44AD', false);
             buildSingleChart('chart-lipidos-perc', '🥑 Lípidos (% Atwater)', labels, dataLipPerc, '#71368A', true);
             buildSingleChart('chart-hidratos', '🍞 Hidratos de Carbono (g)', labels, dataHidratos, '#3498DB', false);
