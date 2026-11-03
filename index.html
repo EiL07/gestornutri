@@ -100,11 +100,12 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal { background: white; padding: 25px 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--accent); }
         
-        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN */
+        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN CORREGIDOS */
         body.exporting-mode .table-responsive { max-height: none !important; overflow: visible !important; border: none !important; }
         body.exporting-mode th, body.exporting-mode td { position: static !important; }
-        body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; } /* Oculta columna de botones X y 🔀 */
-        body.exporting-mode .edit-grams { border: none !important; background: transparent !important; padding: 0 !important; width: auto !important; }
+        body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; }
+        /* Ahora el recuadro de gramos solo se hace transparente, manteniendo su tamaño original para que no corte los números */
+        body.exporting-mode .edit-grams { border-color: transparent !important; background: transparent !important; box-shadow: none !important; outline: none !important; color: var(--dark) !important;}
 
         @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
