@@ -17,7 +17,9 @@
         .card { background: var(--white); padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         h1, h2, h3, h4 { margin-top: 0; color: var(--dark); }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
-        input[type="text"], input[type="number"], input[type="email"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
+        
+        /* CORREGIDO EL BUG VISUAL: input[type="password"] está de vuelta */
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
         textarea { resize: vertical; min-height: 60px; }
         input[type="radio"], input[type="checkbox"] { margin-right: 5px; transform: scale(1.1); }
         .radio-group, .checkbox-group { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; font-size: 13px;}
@@ -100,12 +102,10 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal { background: white; padding: 25px 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--accent); }
         
-        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN CORREGIDOS */
+        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN */
         body.exporting-mode .table-responsive { max-height: none !important; overflow: visible !important; border: none !important; }
         body.exporting-mode th, body.exporting-mode td { position: static !important; }
         body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; }
-        /* Ahora el recuadro de gramos solo se hace transparente, manteniendo su tamaño original para que no corte los números */
-        body.exporting-mode .edit-grams { border-color: transparent !important; background: transparent !important; box-shadow: none !important; outline: none !important; color: var(--dark) !important;}
 
         @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
@@ -726,29 +726,34 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
-        // LÓGICA DE EXPORTACIÓN A IMAGEN
+        // LÓGICA DE EXPORTACIÓN A IMAGEN (CON TRUCO INFALIBLE PARA LOS NÚMEROS)
         async function exportToImage(mode) {
             if (currentTemplate.length === 0) return alert("La plantilla está vacía. Añade alimentos primero.");
             
-            // 1. Guardar el estado actual de la vista
             const originalMicrosState = showAllMicros;
-            
-            // 2. Ajustar la vista según el modo solicitado
             showAllMicros = (mode === 'all');
             renderTemplate();
             
-            // 3. Activar el "modo fotografía" (oculta botones, limpia inputs de gramos)
             document.body.classList.add('exporting-mode');
             const targetElement = document.querySelector('.table-responsive');
             
+            // TRUCO: Cambiamos los inputs de gramos por texto normal temporalmente para que html2canvas no los corte
+            const inputsGramos = targetElement.querySelectorAll('.edit-grams');
+            inputsGramos.forEach(input => {
+                const span = document.createElement('span');
+                span.className = 'temp-export-text';
+                span.textContent = input.value;
+                span.style.fontWeight = 'bold';
+                input.style.display = 'none';
+                input.parentNode.insertBefore(span, input);
+            });
+            
             try {
-                // 4. Tomar la foto
                 const canvas = await html2canvas(targetElement, { 
                     scale: 2, 
                     backgroundColor: '#ffffff' 
                 });
                 
-                // 5. Crear el enlace de descarga
                 const link = document.createElement('a');
                 let patientName = document.getElementById('diet-name-input').value.trim() || 'Dieta_Generica';
                 let tag = mode === 'all' ? 'Completa' : 'Macros';
@@ -760,7 +765,10 @@
                 console.error(error);
             }
             
-            // 6. Restaurar todo a la normalidad
+            // Restauramos los inputs y borramos el texto falso
+            inputsGramos.forEach(input => input.style.display = '');
+            targetElement.querySelectorAll('.temp-export-text').forEach(el => el.remove());
+            
             document.body.classList.remove('exporting-mode');
             showAllMicros = originalMicrosState;
             renderTemplate();
