@@ -18,7 +18,6 @@
         h1, h2, h3, h4 { margin-top: 0; color: var(--dark); }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; }
         
-        /* CORREGIDO EL BUG VISUAL: input[type="password"] está de vuelta */
         input[type="text"], input[type="number"], input[type="email"], input[type="password"], input[type="date"], select, textarea { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
         textarea { resize: vertical; min-height: 60px; }
         input[type="radio"], input[type="checkbox"] { margin-right: 5px; transform: scale(1.1); }
@@ -102,10 +101,12 @@
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
         .modal { background: white; padding: 25px 30px; border-radius: 12px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border-top: 5px solid var(--accent); }
         
-        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN */
-        body.exporting-mode .table-responsive { max-height: none !important; overflow: visible !important; border: none !important; }
+        /* ESTILOS PARA LA EXPORTACIÓN A IMAGEN OPTIMIZADOS */
+        body.exporting-mode .table-responsive { max-height: none !important; max-width: none !important; width: max-content !important; overflow: visible !important; border: none !important; }
+        body.exporting-mode table { width: max-content !important; }
         body.exporting-mode th, body.exporting-mode td { position: static !important; }
         body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; }
+        body.exporting-mode .edit-grams { border-color: transparent !important; background: transparent !important; box-shadow: none !important; outline: none !important; color: var(--dark) !important;}
 
         @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
     </style>
@@ -744,14 +745,20 @@
                 span.className = 'temp-export-text';
                 span.textContent = input.value;
                 span.style.fontWeight = 'bold';
+                span.style.display = 'inline-block';
+                span.style.width = '70px';
+                span.style.textAlign = 'center';
                 input.style.display = 'none';
                 input.parentNode.insertBefore(span, input);
             });
             
             try {
+                const fullWidth = targetElement.scrollWidth;
                 const canvas = await html2canvas(targetElement, { 
                     scale: 2, 
-                    backgroundColor: '#ffffff' 
+                    backgroundColor: '#ffffff',
+                    width: fullWidth,
+                    windowWidth: fullWidth
                 });
                 
                 const link = document.createElement('a');
