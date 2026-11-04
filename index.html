@@ -108,10 +108,49 @@
         body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; }
         body.exporting-mode .edit-grams { border-color: transparent !important; background: transparent !important; box-shadow: none !important; outline: none !important; color: var(--dark) !important;}
 
-        @media (max-width: 900px) { .charts-grid, .ficha-grid-2, .ficha-grid-3, .ficha-grid-4 { grid-template-columns: 1fr; } }
+        /* CSS DEL JUEGO SECRETO (BROCOLI CLICKER) */
+        #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .game-wrapper { background: #fff; width: 90%; max-width: 900px; height: 80vh; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; box-shadow: 0 10px 50px rgba(46, 204, 113, 0.4); position: relative; }
+        .game-left { background: #27AE60; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; padding: 20px; user-select: none; }
+        .game-right { background: #fdfefe; padding: 20px; overflow-y: auto; }
+        .big-broccoli { font-size: 130px; cursor: pointer; transition: 0.05s; margin: 30px 0; text-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .big-broccoli:active { transform: scale(0.9); }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: #ecf0f1; border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; border-left: 5px solid #bdc3c7; transition: 0.2s; }
+        .shop-item:hover { transform: translateX(-5px); }
+        .shop-item.affordable { border-left-color: #F39C12; background: #fffdf5; }
+        .shop-item-details h4 { margin: 0 0 5px 0; color: #2C3E50; }
+        .shop-item-details p { margin: 0; font-size: 12px; color: #7f8c8d; }
+        .shop-item-cost { font-weight: bold; color: #E74C3C; background: white; padding: 5px 10px; border-radius: 20px; font-size: 13px; }
+        .shop-item.affordable .shop-item-cost { color: #27AE60; }
+        .game-close { position: absolute; top: 15px; right: 25px; color: #2C3E50; font-size: 30px; font-weight: bold; cursor: pointer; z-index: 100; }
+        @media (max-width: 768px) { .game-wrapper { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .big-broccoli { font-size: 90px; margin: 15px 0; } }
+
     </style>
 </head>
 <body>
+
+    <!-- JUEGO SECRETO: BRÓCOLI CLICKER -->
+    <div id="game-modal">
+        <div class="game-wrapper">
+            <span class="game-close" onclick="document.getElementById('game-modal').style.display='none'">×</span>
+            <div class="game-left">
+                <h2 style="margin:0; text-transform: uppercase; letter-spacing: 2px;">Brócoli Clicker</h2>
+                <h1 id="game-score" style="font-size: 3.5em; margin: 10px 0; text-shadow: 0 4px 6px rgba(0,0,0,0.2);">0</h1>
+                <p style="margin:0; font-size: 1.2em; opacity: 0.9;">Brócolis farmeados</p>
+                
+                <div class="big-broccoli" onclick="clickBroccoli()">🥦</div>
+                
+                <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; width: 80%;">
+                    <p style="margin: 0 0 5px 0; font-size: 16px;"><b>Por segundo (B/s):</b> <span id="game-bps">0</span></p>
+                    <p style="margin: 0; font-size: 16px;"><b>Por clic (B/c):</b> <span id="game-bpc">1</span></p>
+                </div>
+            </div>
+            <div class="game-right">
+                <h3 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom:10px; color:var(--dark);">🛒 Mercado Agrícola</h3>
+                <div id="game-shop"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- SISTEMA DE AUTENTICACIÓN MEJORADO -->
     <div id="auth-screen">
@@ -139,7 +178,8 @@
     <div id="app-screen" class="container">
         
         <div class="header-bar">
-            <h1>🌱 Gestor Nutricional Clínico</h1>
+            <!-- AQUI ESTÁ EL DISPARADOR SECRETO (onclick="triggerEasterEgg()") -->
+            <h1><span onclick="triggerEasterEgg()" style="cursor: pointer; user-select: none;" title="🌱">🌱</span> Gestor Nutricional Clínico</h1>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <span id="user-display" style="font-weight: bold; color: #2ECC71;"></span>
                 <button onclick="logout()" class="btn-delete-small" style="padding: 8px 15px;">Cerrar Sesión</button>
@@ -312,7 +352,6 @@
                 <h2>📊 Analizador de Progreso y Comparativa</h2>
                 <p style="color: #666; font-size: 14px;">Haz clic directamente sobre la barra de cualquier dieta para seleccionarla. Se ordenarán y graficarán <b>en el orden exacto en el que vayas haciendo clic.</b></p>
                 
-                <!-- NUEVO: Selector para añadir carpetas completas a las gráficas -->
                 <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px; padding: 15px; background: #fdfefe; border: 1px solid #eee; border-radius: 8px;">
                     <div style="flex: 1;">
                         <label>Añadir carpeta completa:</label>
@@ -740,7 +779,106 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
-        // LÓGICA DE EXPORTACIÓN A IMAGEN (CON TRUCO INFALIBLE PARA LOS NÚMEROS)
+        // LÓGICA DEL JUEGO SECRETO (BRÓCOLI CLICKER)
+        let easterEggClicks = 0;
+        let lastEasterEggTime = 0;
+        let broccoliData = { broccolis: 0, bpc: 1, bps: 0, shop: { 
+            u1: { count: 0, cost: 10, name: "Tijeras de podar", desc: "+1 B/clic", type: "click", val: 1, icon: "✂️" }, 
+            u2: { count: 0, cost: 50, name: "Maceta en la ventana", desc: "+1 B/s", type: "passive", val: 1, icon: "🪴" }, 
+            u3: { count: 0, cost: 200, name: "Licuadora industrial", desc: "+5 B/clic", type: "click", val: 5, icon: "🌪️" }, 
+            u4: { count: 0, cost: 500, name: "Huerto urbano", desc: "+10 B/s", type: "passive", val: 10, icon: "🧑‍🌾" }, 
+            u5: { count: 0, cost: 5000, name: "Becario de Dietética", desc: "+50 B/s", type: "passive", val: 50, icon: "👨‍🎓" }, 
+            u6: { count: 0, cost: 50000, name: "Influencer Realfooder", desc: "+500 B/s", type: "passive", val: 500, icon: "🤳" } 
+        }};
+
+        function triggerEasterEgg() {
+            const now = Date.now();
+            if (now - lastEasterEggTime > 1000) easterEggClicks = 0;
+            easterEggClicks++;
+            lastEasterEggTime = now;
+            
+            if (easterEggClicks >= 5) {
+                easterEggClicks = 0;
+                loadBroccoliGame();
+                document.getElementById('game-modal').style.display = 'flex';
+            }
+        }
+
+        function loadBroccoliGame() {
+            const saved = localStorage.getItem('broccoli_save');
+            if (saved) { try { broccoliData = JSON.parse(saved); } catch(e) {} }
+            updateBroccoliUI();
+            renderBroccoliShop();
+        }
+
+        function saveBroccoliGame() {
+            localStorage.setItem('broccoli_save', JSON.stringify(broccoliData));
+        }
+
+        function clickBroccoli() {
+            broccoliData.broccolis += broccoliData.bpc;
+            updateBroccoliUI();
+            renderBroccoliShop();
+        }
+
+        function updateBroccoliUI() {
+            document.getElementById('game-score').textContent = Math.floor(broccoliData.broccolis).toLocaleString('es-ES');
+            document.getElementById('game-bps').textContent = broccoliData.bps.toLocaleString('es-ES');
+            document.getElementById('game-bpc').textContent = broccoliData.bpc.toLocaleString('es-ES');
+        }
+
+        function renderBroccoliShop() {
+            const shop = document.getElementById('game-shop');
+            shop.innerHTML = '';
+            for (const key in broccoliData.shop) {
+                const item = broccoliData.shop[key];
+                const affordable = broccoliData.broccolis >= item.cost;
+                shop.innerHTML += `
+                    <div class="shop-item ${affordable ? 'affordable' : ''}" onclick="buyBroccoliUpgrade('${key}')">
+                        <div style="font-size: 30px; margin-right: 15px;">${item.icon}</div>
+                        <div class="shop-item-details" style="flex:1;">
+                            <h4>${item.name} <span style="color:#7f8c8d; font-weight:normal; font-size:12px;">(x${item.count})</span></h4>
+                            <p>${item.desc}</p>
+                        </div>
+                        <div class="shop-item-cost">${Math.ceil(item.cost).toLocaleString('es-ES')} B</div>
+                    </div>
+                `;
+            }
+        }
+
+        function buyBroccoliUpgrade(key) {
+            const item = broccoliData.shop[key];
+            if (broccoliData.broccolis >= item.cost) {
+                broccoliData.broccolis -= item.cost;
+                item.count++;
+                item.cost = item.cost * 1.5; 
+                
+                if (item.type === 'click') broccoliData.bpc += item.val;
+                if (item.type === 'passive') broccoliData.bps += item.val;
+                
+                updateBroccoliUI();
+                renderBroccoliShop();
+                saveBroccoliGame();
+            }
+        }
+
+        // Bucle pasivo de farmeo (10 veces por segundo para que se vea fluido)
+        setInterval(() => {
+            if (broccoliData.bps > 0) {
+                broccoliData.broccolis += (broccoliData.bps / 10);
+                if (document.getElementById('game-modal').style.display === 'flex') {
+                    updateBroccoliUI();
+                    // Solo recarga la tienda visualmente cada segundo para no gastar recursos
+                    if(Math.random() < 0.1) renderBroccoliShop(); 
+                }
+            }
+        }, 100);
+
+        // Guardado automático cada 5 segundos
+        setInterval(saveBroccoliGame, 5000);
+
+
+        // LÓGICA DE EXPORTACIÓN A IMAGEN
         async function exportToImage(mode) {
             if (currentTemplate.length === 0) return alert("La plantilla está vacía. Añade alimentos primero.");
             
@@ -751,7 +889,6 @@
             document.body.classList.add('exporting-mode');
             const targetElement = document.querySelector('.table-responsive');
             
-            // TRUCO: Cambiamos los inputs de gramos por texto normal temporalmente para que html2canvas no los corte
             const inputsGramos = targetElement.querySelectorAll('.edit-grams');
             inputsGramos.forEach(input => {
                 const span = document.createElement('span');
@@ -785,7 +922,6 @@
                 console.error(error);
             }
             
-            // Restauramos los inputs y borramos el texto falso
             inputsGramos.forEach(input => input.style.display = '');
             targetElement.querySelectorAll('.temp-export-text').forEach(el => el.remove());
             
