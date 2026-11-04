@@ -178,7 +178,7 @@
     <div id="app-screen" class="container">
         
         <div class="header-bar">
-            <!-- AQUI ESTÁ EL DISPARADOR SECRETO (onclick="triggerEasterEgg()") -->
+            <!-- DISPARADOR SECRETO: Haz clic 5 veces rápidas en el brócoli 🌱 -->
             <h1><span onclick="triggerEasterEgg()" style="cursor: pointer; user-select: none;" title="🌱">🌱</span> Gestor Nutricional Clínico</h1>
             <div style="display: flex; gap: 15px; align-items: center;">
                 <span id="user-display" style="font-weight: bold; color: #2ECC71;"></span>
@@ -782,14 +782,35 @@
         // LÓGICA DEL JUEGO SECRETO (BRÓCOLI CLICKER)
         let easterEggClicks = 0;
         let lastEasterEggTime = 0;
-        let broccoliData = { broccolis: 0, bpc: 1, bps: 0, shop: { 
+        
+        let defaultShop = { 
             u1: { count: 0, cost: 10, name: "Tijeras de podar", desc: "+1 B/clic", type: "click", val: 1, icon: "✂️" }, 
             u2: { count: 0, cost: 50, name: "Maceta en la ventana", desc: "+1 B/s", type: "passive", val: 1, icon: "🪴" }, 
             u3: { count: 0, cost: 200, name: "Licuadora industrial", desc: "+5 B/clic", type: "click", val: 5, icon: "🌪️" }, 
             u4: { count: 0, cost: 500, name: "Huerto urbano", desc: "+10 B/s", type: "passive", val: 10, icon: "🧑‍🌾" }, 
             u5: { count: 0, cost: 5000, name: "Becario de Dietética", desc: "+50 B/s", type: "passive", val: 50, icon: "👨‍🎓" }, 
-            u6: { count: 0, cost: 50000, name: "Influencer Realfooder", desc: "+500 B/s", type: "passive", val: 500, icon: "🤳" } 
-        }};
+            u6: { count: 0, cost: 50000, name: "Influencer Realfooder", desc: "+500 B/s", type: "passive", val: 500, icon: "🤳" },
+            u7: { count: 0, cost: 150000, name: "Tractor a pedales", desc: "+1.500 B/clic", type: "click", val: 1500, icon: "🚜" },
+            u8: { count: 0, cost: 500000, name: "Invernadero hidropónico", desc: "+4.000 B/s", type: "passive", val: 4000, icon: "🏗️" },
+            u9: { count: 0, cost: 2000000, name: "Fábrica de suplementos verdes", desc: "+15.000 B/s", type: "passive", val: 15000, icon: "🏭" },
+            u10: { count: 0, cost: 10000000, name: "Nutri Estrella Michelin", desc: "+50.000 B/clic", type: "click", val: 50000, icon: "👨‍🍳" },
+            u11: { count: 0, cost: 50000000, name: "Clínica de Nutrición Global", desc: "+250.000 B/s", type: "passive", val: 250000, icon: "🏥" },
+            u12: { count: 0, cost: 300000000, name: "Plantación en Marte", desc: "+1.500.000 B/s", type: "passive", val: 1500000, icon: "🚀" },
+            u13: { count: 0, cost: 1500000000, name: "Clonadora de clorofila", desc: "+5.000.000 B/clic", type: "click", val: 5000000, icon: "🧬" },
+            u14: { count: 0, cost: 8000000000, name: "Secta del Brócoli Sagrado", desc: "+35.000.000 B/s", type: "passive", val: 35000000, icon: "🛕" },
+            u15: { count: 0, cost: 50000000000, name: "Multiverso de las Crucíferas", desc: "+200.000.000 B/s", type: "passive", val: 200000000, icon: "🌌" },
+            u16: { count: 0, cost: 400000000000, name: "Agujero Negro de Fibra", desc: "+1.500.000.000 B/s", type: "passive", val: 1500000000, icon: "🕳️" },
+            u17: { count: 0, cost: 3000000000000, name: "Modificador Cuántico", desc: "+15.000.000.000 B/clic", type: "click", val: 15000000000, icon: "⚛️" },
+            u18: { count: 0, cost: 25000000000000, name: "El Árbol de la Vida", desc: "+100.000.000.000 B/s", type: "passive", val: 100000000000, icon: "🌳" },
+            u19: { count: 0, cost: 999000000000000, name: "El Dios del Brócoli", desc: "+5 Billones B/s", type: "passive", val: 5000000000000, icon: "👑" }
+        };
+
+        let broccoliData = { 
+            broccolis: 0, 
+            bpc: 1, 
+            bps: 0, 
+            shop: JSON.parse(JSON.stringify(defaultShop))
+        };
 
         function triggerEasterEgg() {
             const now = Date.now();
@@ -806,7 +827,22 @@
 
         function loadBroccoliGame() {
             const saved = localStorage.getItem('broccoli_save');
-            if (saved) { try { broccoliData = JSON.parse(saved); } catch(e) {} }
+            if (saved) { 
+                try { 
+                    let loadedData = JSON.parse(saved); 
+                    broccoliData.broccolis = loadedData.broccolis || 0;
+                    broccoliData.bps = loadedData.bps || 0;
+                    broccoliData.bpc = loadedData.bpc || 1;
+                    
+                    // Fusionar tienda guardada con la tienda nueva (por si hay objetos nuevos)
+                    for (let key in loadedData.shop) {
+                        if (broccoliData.shop[key]) {
+                            broccoliData.shop[key].count = loadedData.shop[key].count;
+                            broccoliData.shop[key].cost = loadedData.shop[key].cost;
+                        }
+                    }
+                } catch(e) {} 
+            }
             updateBroccoliUI();
             renderBroccoliShop();
         }
@@ -862,19 +898,16 @@
             }
         }
 
-        // Bucle pasivo de farmeo (10 veces por segundo para que se vea fluido)
         setInterval(() => {
             if (broccoliData.bps > 0) {
                 broccoliData.broccolis += (broccoliData.bps / 10);
                 if (document.getElementById('game-modal').style.display === 'flex') {
                     updateBroccoliUI();
-                    // Solo recarga la tienda visualmente cada segundo para no gastar recursos
                     if(Math.random() < 0.1) renderBroccoliShop(); 
                 }
             }
         }, 100);
 
-        // Guardado automático cada 5 segundos
         setInterval(saveBroccoliGame, 5000);
 
 
