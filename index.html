@@ -311,6 +311,19 @@
             <div class="card" style="border-left: 5px solid #F39C12;">
                 <h2>📊 Analizador de Progreso y Comparativa</h2>
                 <p style="color: #666; font-size: 14px;">Haz clic directamente sobre la barra de cualquier dieta para seleccionarla. Se ordenarán y graficarán <b>en el orden exacto en el que vayas haciendo clic.</b></p>
+                
+                <!-- NUEVO: Selector para añadir carpetas completas a las gráficas -->
+                <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px; padding: 15px; background: #fdfefe; border: 1px solid #eee; border-radius: 8px;">
+                    <div style="flex: 1;">
+                        <label>Añadir carpeta completa:</label>
+                        <select id="chart-folder-select" style="margin-bottom: 0;">
+                            <option value="">Cargando carpetas...</option>
+                        </select>
+                    </div>
+                    <button onclick="addFolderToCharts()" style="background-color: var(--accent);">📁 Añadir Carpeta</button>
+                    <button onclick="clearChartSelection()" class="btn-delete">🗑️ Limpiar Todo</button>
+                </div>
+
                 <div class="checklist-dietas" id="diet-checklist-container"></div>
                 <button class="btn-toggle" onclick="generateCharts()" style="margin-top: 15px; margin-bottom: 0;">📊 Generar Gráficas de Evolución</button>
             </div>
@@ -893,6 +906,37 @@
             }
         }
 
+        // LÓGICA DE AÑADIR CARPETA A GRÁFICAS Y LIMPIAR
+        function addFolderToCharts() {
+            const folder = document.getElementById('chart-folder-select').value;
+            if (!folder) return alert("Selecciona una carpeta.");
+
+            const dietsInFolder = savedDiets.filter(d => (d.carpeta || 'General') === folder);
+            if (dietsInFolder.length === 0) return alert("Esta carpeta no tiene dietas.");
+
+            let addedCount = 0;
+            dietsInFolder.forEach(diet => {
+                const dietStrId = String(diet.id);
+                if (!selectedDietIds.includes(dietStrId)) {
+                    selectedDietIds.push(dietStrId);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                renderDietChecklist();
+                if (document.getElementById('charts-wrapper').style.display !== 'none') generateCharts();
+            } else {
+                alert("Todas las dietas de esta carpeta ya están seleccionadas en la gráfica.");
+            }
+        }
+
+        function clearChartSelection() {
+            selectedDietIds = [];
+            renderDietChecklist();
+            document.getElementById('charts-wrapper').style.display = 'none';
+        }
+
         // ACTIVAR DESELECCIÓN DE RADIO BUTTONS AL VOLVER A CLICKAR
         let lastRadioClicked = null;
         document.addEventListener('mousedown', (e) => {
@@ -1298,6 +1342,17 @@
                 folderSelect.value = 'General';
             }
             toggleNewFolderInput();
+
+            const chartFolderSelect = document.getElementById('chart-folder-select');
+            if (chartFolderSelect) {
+                chartFolderSelect.innerHTML = '<option value="">--- Selecciona una carpeta ---</option>';
+                folders.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f;
+                    opt.textContent = `📁 ${f}`;
+                    chartFolderSelect.appendChild(opt);
+                });
+            }
 
             const filterSelect = document.getElementById('filter-folder-select');
             const currentFilter = filterSelect.value;
