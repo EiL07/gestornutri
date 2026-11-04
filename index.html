@@ -107,6 +107,12 @@
         body.exporting-mode th, body.exporting-mode td { position: static !important; }
         body.exporting-mode th:last-child, body.exporting-mode td:last-child { display: none !important; }
         body.exporting-mode .edit-grams { border-color: transparent !important; background: transparent !important; box-shadow: none !important; outline: none !important; color: var(--dark) !important;}
+        body.exporting-mode .drag-handle { display: none !important; } /* Ocultar icono de arrastre al exportar */
+
+        /* CSS DRAG AND DROP */
+        tr[draggable="true"] { transition: background-color 0.2s; }
+        tr[draggable="true"]:hover { background-color: #f4fdf8; }
+        tr[draggable="true"]:active { opacity: 0.7; }
 
         /* CSS DEL JUEGO SECRETO (BROCOLI CLICKER) */
         #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
@@ -779,6 +785,27 @@
         const db = supabase.createClient(supabaseUrl, supabaseKey);
         let currentUser = null;
 
+        // LÓGICA DE ARRASTRE Y SOLTADO (DRAG & DROP)
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        function drag(ev, id) {
+            ev.dataTransfer.setData("text/plain", id);
+        }
+        function dragEnd(ev) {
+            ev.target.style.opacity = '1';
+        }
+        function drop(ev, newMeal) {
+            ev.preventDefault();
+            const id = parseInt(ev.dataTransfer.getData("text/plain"));
+            let item = currentTemplate.find(i => i.id === id);
+            if(item && item.meal !== newMeal) {
+                item.meal = newMeal;
+                saveFormState();
+                renderTemplate();
+            }
+        }
+
         // LÓGICA DEL JUEGO SECRETO (BRÓCOLI CLICKER)
         let easterEggClicks = 0;
         let lastEasterEggTime = 0;
@@ -834,7 +861,6 @@
                     broccoliData.bps = loadedData.bps || 0;
                     broccoliData.bpc = loadedData.bpc || 1;
                     
-                    // Fusionar tienda guardada con la tienda nueva (por si hay objetos nuevos)
                     for (let key in loadedData.shop) {
                         if (broccoliData.shop[key]) {
                             broccoliData.shop[key].count = loadedData.shop[key].count;
@@ -1739,6 +1765,7 @@
             if (protCol && lipCol && carbCol) { totalAtwater = ((dailyTotals[protCol]||0) * 4) + ((dailyTotals[lipCol]||0) * 9) + ((dailyTotals[carbCol]||0) * 4); }
             const thead = document.getElementById('template-head'); let headHtml = `<tr><th class="sticky-col">Alimento</th><th>Cantidad (g)</th>`; colsToRender.forEach(col => headHtml += `<th>${col}</th>`); thead.innerHTML = headHtml + `<th></th></tr>`;
             const tbody = document.getElementById('template-body'); tbody.innerHTML = '';
+            
             mealOrder.forEach(meal => {
                 const items = currentTemplate.filter(i => i.meal === meal);
                 if(items.length > 0) {
@@ -1746,16 +1773,25 @@
                     items.forEach(item => { colsToRender.forEach(col => { mealTotals[col] += item[col]; }); });
                     let mealAtwater = 0; if (protCol && lipCol && carbCol) { mealAtwater = ((mealTotals[protCol]||0) * 4) + ((mealTotals[lipCol]||0) * 9) + ((mealTotals[carbCol]||0) * 4); }
                     let mealPercentageText = ""; if (totalAtwater > 0) { mealPercentageText = `<span class="meal-perc-badge">${((mealAtwater / totalAtwater) * 100).toFixed(1)}% del día</span>`; }
-                    tbody.innerHTML += `<tr class="meal-header"><td colspan="${colsToRender.length + 3}">${meal} ${mealPercentageText}</td></tr>`;
+                    
+                    tbody.innerHTML += `<tr class="meal-header" ondrop="drop(event, '${meal}')" ondragover="allowDrop(event)"><td colspan="${colsToRender.length + 3}">${meal} ${mealPercentageText}</td></tr>`;
+                    
                     items.forEach(item => {
-                        let rowHtml = `<tr><td class="sticky-col">${item.name}</td><td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
+                        let rowHtml = `<tr draggable="true" ondragstart="drag(event, ${item.id})" ondragend="dragEnd(event)" ondrop="drop(event, '${meal}')" ondragover="allowDrop(event)">
+                            <td class="sticky-col">
+                                <span class="drag-handle" title="Mantener pulsado para arrastrar a otra comida" style="cursor: grab; color: #bdc3c7; font-size:18px; margin-right:8px; font-weight:bold;">≡</span>
+                                ${item.name}
+                            </td>
+                            <td><input type="number" class="edit-grams" value="${item.grams}" onchange="updateItemGrams(${item.id}, this.value)"></td>`;
                         colsToRender.forEach(col => { rowHtml += `<td>${item[col].toFixed(1)}</td>`; });
                         tbody.innerHTML += rowHtml + `<td style="white-space: nowrap;"><button class="btn-toggle" style="padding: 4px 6px; font-size: 11px; margin-right: 4px;" onclick="openExchangeModal(${item.id})" title="Intercambiar">🔀</button><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
                     });
-                    let subHtml = `<tr class="subtotals"><td class="sticky-col" style="text-align:right">Subtotal:` + (mealAtwater > 0 ? `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>` : '') + `</td><td>-</td>`;
+                    
+                    let subHtml = `<tr class="subtotals" ondrop="drop(event, '${meal}')" ondragover="allowDrop(event)"><td class="sticky-col" style="text-align:right">Subtotal:` + (mealAtwater > 0 ? `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>` : '') + `</td><td>-</td>`;
                     colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`); tbody.innerHTML += subHtml + `<td></td></tr>`;
                 }
             });
+            
             const tfoot = document.getElementById('template-foot');
             let footHtml = `<tr class="totals"><td class="sticky-col">TOTAL DÍA` + (totalAtwater > 0 ? `<br><span class="atwater-badge">${totalAtwater.toFixed(1)} kcal (Atwater)</span>` : '') + `</td><td>-</td>`;
             colsToRender.forEach(col => {
