@@ -873,7 +873,9 @@
             if (!loadedData) {
                 const saved = localStorage.getItem('broccoli_save');
                 if (saved) { 
-                    try { loadedData = JSON.parse(saved); } catch(e) {} 
+                    try { 
+                        loadedData = JSON.parse(saved); // <-- ERROR CORREGIDO AQUI: Sin "let"
+                    } catch(e) {} 
                 }
             }
 
@@ -883,6 +885,7 @@
                 broccoliData.bps = loadedData.bps || 0;
                 broccoliData.bpc = loadedData.bpc || 1;
                 
+                // Fusionar tienda guardada con la tienda nueva (por si hay objetos nuevos)
                 for (let key in loadedData.shop) {
                     if (broccoliData.shop[key]) {
                         broccoliData.shop[key].count = loadedData.shop[key].count;
@@ -960,12 +963,13 @@
             }
         }
 
-        // Bucle del juego
+        // Bucle pasivo de farmeo
         setInterval(() => {
             if (broccoliData.bps > 0) {
                 broccoliData.broccolis += (broccoliData.bps / 10);
                 if (document.getElementById('game-modal').style.display === 'flex') {
                     updateBroccoliUI();
+                    // Solo recarga la tienda visualmente cada segundo para no gastar recursos
                     if(Math.random() < 0.1) renderBroccoliShop(); 
                 }
             }
