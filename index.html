@@ -138,8 +138,8 @@
     <!-- JUEGO SECRETO: BRÓCOLI CLICKER -->
     <div id="game-modal">
         <div class="game-wrapper">
-            <!-- Al cerrar, forzamos un guardado manual -->
-            <span class="game-close" onclick="saveBroccoliGame(); document.getElementById('game-modal').style.display='none'">×</span>
+            <!-- Al cerrar, forzamos subir a la nube -->
+            <span class="game-close" onclick="saveBroccoliGameToCloud(); document.getElementById('game-modal').style.display='none'">×</span>
             <div class="game-left">
                 <h2 style="margin:0; text-transform: uppercase; letter-spacing: 2px;">Brócoli Clicker</h2>
                 <h1 id="game-score" style="font-size: 3.5em; margin: 10px 0; text-shadow: 0 4px 6px rgba(0,0,0,0.2);">0</h1>
@@ -848,7 +848,7 @@
             
             if (easterEggClicks >= 5) {
                 easterEggClicks = 0;
-                document.getElementById('game-score').textContent = "..."; // Efecto de carga
+                document.getElementById('game-score').textContent = "..."; 
                 document.getElementById('game-modal').style.display = 'flex';
                 await loadBroccoliGame();
             }
@@ -857,35 +857,44 @@
         async function loadBroccoliGame() {
             if (!currentUser) return;
             
-            let loadedData = null;
+            let cloudData = null;
+            let localData = null;
             
-            // 1. Intentar cargar desde la nube (Supabase)
+            // 1. Intentar cargar desde caché local
+            const saved = localStorage.getItem('broccoli_save');
+            if (saved) { 
+                try { localData = JSON.parse(saved); } catch(e) {} 
+            }
+
+            // 2. Intentar cargar desde la nube (Supabase)
             try {
                 const { data, error } = await db.from('broccoli_saves').select('save_data').eq('user_id', currentUser.id).single();
                 if (data && data.save_data) {
-                    loadedData = typeof data.save_data === 'string' ? JSON.parse(data.save_data) : data.save_data;
+                    cloudData = typeof data.save_data === 'string' ? JSON.parse(data.save_data) : data.save_data;
                 }
             } catch (err) {
-                console.log("No hay guardado en la nube todavía.");
+                console.log("No hay guardado en la nube o falta aplicar el SQL.");
             }
             
-            // 2. Si no hay en la nube, buscar en local
-            if (!loadedData) {
-                const saved = localStorage.getItem('broccoli_save');
-                if (saved) { 
-                    try { 
-                        loadedData = JSON.parse(saved); // <-- ERROR CORREGIDO AQUI: Sin "let"
-                    } catch(e) {} 
-                }
+            // 3. Sistema inteligente: El que tenga más brócolis, gana
+            let loadedData = null;
+            const localScore = localData ? (localData.broccolis || 0) : 0;
+            const cloudScore = cloudData ? (cloudData.broccolis || 0) : 0;
+
+            if (localScore >= cloudScore && localScore > 0) {
+                loadedData = localData;
+                saveBroccoliGameToCloud(localData); // Forzar sincronización de PC a Nube
+            } else if (cloudScore > localScore) {
+                loadedData = cloudData;
+                localStorage.setItem('broccoli_save', JSON.stringify(cloudData)); // Sincronizar de Nube a PC
             }
 
-            // 3. Aplicar datos
+            // 4. Aplicar datos
             if (loadedData) {
                 broccoliData.broccolis = loadedData.broccolis || 0;
                 broccoliData.bps = loadedData.bps || 0;
                 broccoliData.bpc = loadedData.bpc || 1;
                 
-                // Fusionar tienda guardada con la tienda nueva (por si hay objetos nuevos)
                 for (let key in loadedData.shop) {
                     if (broccoliData.shop[key]) {
                         broccoliData.shop[key].count = loadedData.shop[key].count;
@@ -898,17 +907,15 @@
             renderBroccoliShop();
         }
 
-        async function saveBroccoliGame() {
+        async function saveBroccoliGameToCloud(dataToSave = broccoliData) {
             if (!currentUser) return;
             
-            // Guardado local de seguridad
-            localStorage.setItem('broccoli_save', JSON.stringify(broccoliData));
+            localStorage.setItem('broccoli_save', JSON.stringify(dataToSave));
             
-            // Subida a Supabase
             try {
                 await db.from('broccoli_saves').upsert({ 
                     user_id: currentUser.id, 
-                    save_data: broccoliData 
+                    save_data: dataToSave 
                 });
             } catch(err) {
                 console.error("Error al sincronizar con la nube:", err);
@@ -958,18 +965,16 @@
                 
                 updateBroccoliUI();
                 renderBroccoliShop();
-                // Al comprar algo, forzamos un guardado en la caché local
                 localStorage.setItem('broccoli_save', JSON.stringify(broccoliData));
             }
         }
 
-        // Bucle pasivo de farmeo
+        // Bucle del juego
         setInterval(() => {
             if (broccoliData.bps > 0) {
                 broccoliData.broccolis += (broccoliData.bps / 10);
                 if (document.getElementById('game-modal').style.display === 'flex') {
                     updateBroccoliUI();
-                    // Solo recarga la tienda visualmente cada segundo para no gastar recursos
                     if(Math.random() < 0.1) renderBroccoliShop(); 
                 }
             }
@@ -982,10 +987,10 @@
             }
         }, 5000);
 
-        // Guardado en Supabase poco frecuente para no colapsar tu base de datos (cada 30 seg)
+        // Guardado en Supabase poco frecuente (cada 30 seg)
         setInterval(() => {
             if (document.getElementById('game-modal').style.display === 'flex') {
-                saveBroccoliGame();
+                saveBroccoliGameToCloud();
             }
         }, 30000);
 
@@ -1839,7 +1844,6 @@
                         colsToRender.forEach(col => { rowHtml += `<td>${item[col].toFixed(1)}</td>`; });
                         tbody.innerHTML += rowHtml + `<td style="white-space: nowrap;"><button class="btn-toggle" style="padding: 4px 6px; font-size: 11px; margin-right: 4px;" onclick="openExchangeModal(${item.id})" title="Intercambiar">🔀</button><button class="btn-delete-small" onclick="removeFromTemplate(${item.id})">X</button></td></tr>`;
                     });
-                    
                     let subHtml = `<tr class="subtotals" ondrop="drop(event, '${meal}')" ondragover="allowDrop(event)"><td class="sticky-col" style="text-align:right">Subtotal:` + (mealAtwater > 0 ? `<br><span class="atwater-badge">${mealAtwater.toFixed(1)} kcal</span>` : '') + `</td><td>-</td>`;
                     colsToRender.forEach(col => subHtml += `<td>${mealTotals[col].toFixed(1)}</td>`); tbody.innerHTML += subHtml + `<td></td></tr>`;
                 }
