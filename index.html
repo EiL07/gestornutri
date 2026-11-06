@@ -117,7 +117,7 @@
         /* CSS DEL JUEGO SECRETO (BROCOLI CLICKER) */
         #game-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
         .game-wrapper { background: #fff; width: 90%; max-width: 900px; height: 80vh; border-radius: 15px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; box-shadow: 0 10px 50px rgba(46, 204, 113, 0.4); position: relative; }
-        .game-left { background: #27AE60; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; padding: 20px; user-select: none; }
+        .game-left { background: #27AE60; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; padding: 20px; user-select: none; position: relative;}
         .game-right { background: #fdfefe; padding: 20px; overflow-y: auto; }
         .big-broccoli { font-size: 130px; cursor: pointer; transition: 0.05s; margin: 30px 0; text-shadow: 0 10px 20px rgba(0,0,0,0.3); }
         .big-broccoli:active { transform: scale(0.9); }
@@ -129,6 +129,8 @@
         .shop-item-cost { font-weight: bold; color: #E74C3C; background: white; padding: 5px 10px; border-radius: 20px; font-size: 13px; }
         .shop-item.affordable .shop-item-cost { color: #27AE60; }
         .game-close { position: absolute; top: 15px; right: 25px; color: #2C3E50; font-size: 30px; font-weight: bold; cursor: pointer; z-index: 100; }
+        #cloud-status { position: absolute; top: 15px; left: 15px; font-size: 12px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 6px; }
+        
         @media (max-width: 768px) { .game-wrapper { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .big-broccoli { font-size: 90px; margin: 15px 0; } }
 
     </style>
@@ -138,10 +140,10 @@
     <!-- JUEGO SECRETO: BRÓCOLI CLICKER -->
     <div id="game-modal">
         <div class="game-wrapper">
-            <!-- Al cerrar, forzamos subir a la nube -->
-            <span class="game-close" onclick="saveBroccoliGameToCloud(); document.getElementById('game-modal').style.display='none'">×</span>
+            <span class="game-close" onclick="closeGameModal()">×</span>
             <div class="game-left">
-                <h2 style="margin:0; text-transform: uppercase; letter-spacing: 2px;">Brócoli Clicker</h2>
+                <div id="cloud-status">☁️ Cargando...</div>
+                <h2 style="margin:0; text-transform: uppercase; letter-spacing: 2px; margin-top: 15px;">Brócoli Clicker</h2>
                 <h1 id="game-score" style="font-size: 3.5em; margin: 10px 0; text-shadow: 0 4px 6px rgba(0,0,0,0.2);">0</h1>
                 <p style="margin:0; font-size: 1.2em; opacity: 0.9;">Brócolis farmeados</p>
                 
@@ -837,8 +839,14 @@
             broccolis: 0, 
             bpc: 1, 
             bps: 0, 
+            last_saved: Date.now(),
             shop: JSON.parse(JSON.stringify(defaultShop))
         };
+
+        function closeGameModal() {
+            saveBroccoliGameToCloud(broccoliData);
+            document.getElementById('game-modal').style.display='none';
+        }
 
         async function triggerEasterEgg() {
             const now = Date.now();
@@ -849,6 +857,7 @@
             if (easterEggClicks >= 5) {
                 easterEggClicks = 0;
                 document.getElementById('game-score').textContent = "..."; 
+                document.getElementById('cloud-status').textContent = '☁️ Cargando...';
                 document.getElementById('game-modal').style.display = 'flex';
                 await loadBroccoliGame();
             }
@@ -860,33 +869,40 @@
             let cloudData = null;
             let localData = null;
             
-            // 1. Intentar cargar desde caché local
+            // 1. Cargar caché local
             const saved = localStorage.getItem('broccoli_save');
             if (saved) { 
                 try { localData = JSON.parse(saved); } catch(e) {} 
             }
 
-            // 2. Intentar cargar desde la nube (Supabase)
+            // 2. Cargar nube
             try {
                 const { data, error } = await db.from('broccoli_saves').select('save_data').eq('user_id', currentUser.id).single();
-                if (data && data.save_data) {
+                if (error && error.code !== 'PGRST116') {
+                    console.error("Error BD:", error);
+                    document.getElementById('cloud-status').textContent = '⚠️ Error de Nube (Revisa SQL)';
+                } else if (data && data.save_data) {
                     cloudData = typeof data.save_data === 'string' ? JSON.parse(data.save_data) : data.save_data;
                 }
             } catch (err) {
-                console.log("No hay guardado en la nube o falta aplicar el SQL.");
+                console.log(err);
             }
             
-            // 3. Sistema inteligente: El que tenga más brócolis, gana
+            // 3. Comparar marcas de tiempo (el guardado más reciente gana)
             let loadedData = null;
-            const localScore = localData ? (localData.broccolis || 0) : 0;
-            const cloudScore = cloudData ? (cloudData.broccolis || 0) : 0;
+            const localTime = localData ? (localData.last_saved || 0) : 0;
+            const cloudTime = cloudData ? (cloudData.last_saved || 0) : 0;
 
-            if (localScore >= cloudScore && localScore > 0) {
-                loadedData = localData;
-                saveBroccoliGameToCloud(localData); // Forzar sincronización de PC a Nube
-            } else if (cloudScore > localScore) {
+            if (cloudTime > localTime) {
                 loadedData = cloudData;
-                localStorage.setItem('broccoli_save', JSON.stringify(cloudData)); // Sincronizar de Nube a PC
+                localStorage.setItem('broccoli_save', JSON.stringify(cloudData)); 
+                document.getElementById('cloud-status').textContent = '☁️ Sincronizado (Nube)';
+            } else if (localTime > cloudTime) {
+                loadedData = localData;
+                saveBroccoliGameToCloud(localData);
+            } else {
+                loadedData = localData || cloudData; 
+                document.getElementById('cloud-status').textContent = '☁️ Sincronizado (Local)';
             }
 
             // 4. Aplicar datos
@@ -894,6 +910,7 @@
                 broccoliData.broccolis = loadedData.broccolis || 0;
                 broccoliData.bps = loadedData.bps || 0;
                 broccoliData.bpc = loadedData.bpc || 1;
+                broccoliData.last_saved = loadedData.last_saved || Date.now();
                 
                 for (let key in loadedData.shop) {
                     if (broccoliData.shop[key]) {
@@ -910,15 +927,22 @@
         async function saveBroccoliGameToCloud(dataToSave = broccoliData) {
             if (!currentUser) return;
             
+            dataToSave.last_saved = Date.now();
             localStorage.setItem('broccoli_save', JSON.stringify(dataToSave));
             
+            const statusEl = document.getElementById('cloud-status');
+            if(statusEl) statusEl.textContent = '☁️ Guardando...';
+
             try {
-                await db.from('broccoli_saves').upsert({ 
+                const { error } = await db.from('broccoli_saves').upsert({ 
                     user_id: currentUser.id, 
                     save_data: dataToSave 
                 });
+                if (error) throw error;
+                if(statusEl) statusEl.textContent = '☁️ Sincronizado';
             } catch(err) {
                 console.error("Error al sincronizar con la nube:", err);
+                if(statusEl) statusEl.textContent = '⚠️ Error de Nube (Revisa SQL)';
             }
         }
 
@@ -965,6 +989,8 @@
                 
                 updateBroccoliUI();
                 renderBroccoliShop();
+                
+                broccoliData.last_saved = Date.now();
                 localStorage.setItem('broccoli_save', JSON.stringify(broccoliData));
             }
         }
@@ -983,6 +1009,7 @@
         // Guardado local frecuente (cada 5 segundos)
         setInterval(() => {
             if (broccoliData.broccolis > 0) {
+                broccoliData.last_saved = Date.now();
                 localStorage.setItem('broccoli_save', JSON.stringify(broccoliData));
             }
         }, 5000);
@@ -990,7 +1017,7 @@
         // Guardado en Supabase poco frecuente (cada 30 seg)
         setInterval(() => {
             if (document.getElementById('game-modal').style.display === 'flex') {
-                saveBroccoliGameToCloud();
+                saveBroccoliGameToCloud(broccoliData);
             }
         }, 30000);
 
@@ -1066,10 +1093,6 @@
         document.getElementById('reg-confirm').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') register();
         });
-
-        // LÓGICA DEL MODAL DE INTERCAMBIO
-        let exchangeTargetItemId = null;
-        let calculatedExchangeGrams = 0;
 
         function openExchangeModal(itemId) {
             exchangeTargetItemId = itemId;
@@ -1159,7 +1182,6 @@
             }
         }
 
-        // LÓGICA DE AÑADIR CARPETA A GRÁFICAS Y LIMPIAR
         function addFolderToCharts() {
             const folder = document.getElementById('chart-folder-select').value;
             if (!folder) return alert("Selecciona una carpeta.");
@@ -1190,7 +1212,6 @@
             document.getElementById('charts-wrapper').style.display = 'none';
         }
 
-        // ACTIVAR DESELECCIÓN DE RADIO BUTTONS AL VOLVER A CLICKAR
         let lastRadioClicked = null;
         document.addEventListener('mousedown', (e) => {
             if (e.target.type === 'radio') {
@@ -1294,7 +1315,6 @@
                     savedDiets.sort((a, b) => a.id > b.id ? 1 : -1); 
                 }
 
-                // Cargar Fichas
                 const { data: fichasData } = await db.from('fichas_pacientes').select('*').eq('user_id', currentUser.id);
                 if (fichasData) savedFichas = fichasData;
 
@@ -1303,8 +1323,6 @@
                 restoreFormState(); renderTemplate();
             } catch (err) { console.error(err); }
         }
-
-        // --- SISTEMA DE FICHAS DIETÉTICAS ---
 
         function addFarmacoRow() {
             farmacosRowCount++;
@@ -1461,7 +1479,6 @@
             if(!error) { alert("Borrada."); clearFicha(true); initApp(); }
         }
 
-        // --- SISTEMA DE GRÁFICAS ---
         function renderDietChecklist() {
             const container = document.getElementById('diet-checklist-container');
             container.innerHTML = '';
@@ -1565,7 +1582,6 @@
             });
         }
 
-        // --- FUNCIONES RESTANTES ---
         function getUniqueFolders() {
             let folders = savedDiets.map(d => d.carpeta || 'General');
             if (!folders.includes('General')) folders.push('General');
